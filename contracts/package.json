@@ -1,0 +1,16 @@
+{
+  "name": "@nimbus/contracts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsp compile . && cp tsp-output/@typespec/openapi3/openapi.yaml ./openapi.yaml",
+    "lint": "redocly lint openapi.yaml"
+  },
+  "devDependencies": {
+    "@typespec/compiler": "1.17.0",
+    "@typespec/http": "1.17.0",
+    "@typespec/openapi3": "1.17.0",
+    "@typespec/openapi": "1.17.0",
+    "@redocly/cli": "2.72.1"
+  }
+}

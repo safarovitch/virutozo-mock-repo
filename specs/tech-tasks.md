@@ -1,0 +1,22 @@
+# Engineering tasks (`TECH-*`)
+
+Engineering work that isn't a user-facing feature (SPEC.md §3.1, §14). Infra PRs list these IDs, or existing `NFR-*` / `ADR-*` IDs, in **Implements:** (T1).
+
+Statuses work like AC statuses: `planned` → `in-progress` → `done`. The PR that works on an item updates its status here. A `done` item needs **at least one passing test whose title starts with its ID** (T2/T3). A `verify:` line may additionally name a **TECH-specific** CI job (never `ci/affected`); `trace:check` confirms the job exists in the workflow file. Day numbers refer to the 9-day plan in SPEC.md §14.
+
+| ID | Status | Scope | Related | Done when | Proof |
+|---|---|---|---|---|---|
+| TECH-1 | `planned` | Day 1. **First commit:** split SPEC.md §7 into `specs/features/` and `specs/shared/` (layout in SPEC.md §3.1). Then: workspace & MF setup (Nx + pnpm, shell + tenants/storage/compute remotes on `@module-federation/vite`), `apps/gateway` (port 8080, resolution order and build modes in SPEC.md §2.2), remote manifests `config/remotes.dev.json` / `config/remotes.gateway.json` (SPEC.md §2.2), shared singletons (MF-2), `libs/mf-contract`, design tokens wired, a local `AGENTS.md` for every app and lib (SPEC.md §11.1), **ADR-0002 written in the same PR** | ADR-0001, ADR-0002, ADR-0005 | Shell loads all 3 remotes (one Vue) in dev and through the gateway | smoke tests titled `TECH-1:` |
+| TECH-2 | `planned` | Day 2. Contract generation: TypeSpec build, Orval (React + Vue Query hooks, Zod, MSW), `contract:check`; **ADR-0003 written in the same PR** | ADR-0003, API-1 | Generated client in `libs/api-client`; CI fails on drift | tests titled `TECH-2:` · `verify: ci/contract-check` |
+| TECH-3 | `planned` | Day 2. Mock API: Fastify under `/api`, seed per `specs/mock-data.md`, cookie session + CSRF/Origin checks, `reportVitals` protections, task runner with `seq`, event scoping, close codes, socket limit, `/api/__test/*` endpoints | §6.4, ADR-0005 | Every contract operation served; responses pass Zod validation | integration tests titled `TECH-3:` |
+| TECH-4 | `planned` | Day 4. Realtime: WS server, `libs/realtime` client (close codes, heartbeat timeout, states), root/scoped EventBus in `libs/mf-contract`, `mergeTask` (§2.5, RT-1…12, WS-1…7), **ADR-0004 written in the same PR**; `libs/test-utils`: `mountRemote(module, ctx)` and `createFakeBus()` | ADR-0004 | Events reach every area's own cache through its bus scope | tests titled `TECH-4:` |
+| TECH-5 | `planned` | Day 1. CI pipeline (§12) incl. `tools/check-trace.ts` implementing T1–T6, `tools/trace/ids.ts`, `ci/hooks`, `ci/no-test-hooks`, `ci/perf`, nightly cross-browser e2e; **ADR-0007 written in the same PR** | §3.3 | All CI jobs run on a PR | tests titled `TECH-5:` · `verify: ci/trace-check` |
+| TECH-6 | `planned` | Day 3. Design system baseline: `ui-kit`, `ui-kit-vue`, Storybook with interaction tests | §8 | §8.2 components have stories and `play` tests | tests titled `TECH-6:` · `verify: ci/storybook-test` |
+| TECH-7 | `planned` | Day 1. Hooks HOOK-1…6 and `lefthook`; every hook ships with tests in `.claude/hooks/__tests__/` (Node's built-in runner, `pnpm test:hooks`), run by lefthook when `.claude/hooks/**` changes | §11.4 | Hooks block the cases in §11.4 | hook tests titled `TECH-7:` · `verify: ci/hooks` |
+| TECH-8 | `planned` | Day 9. MCP spec server | §11.5 | All 5 tools answer from the specs and the contract | tests titled `TECH-8:` |
+| TECH-9 | `planned` | Day 9. Skill evals | §11.6 | ≥ 2 fixtures scored into `tools/evals/results/` | grader tests titled `TECH-9:` |
+| TECH-10 | `planned` | Day 9. Custom ESLint rules (§11.7, incl. `no-handwritten-query-key`, `no-server-text`, `test-name-has-id` using `tools/trace/ids.ts`) | §11.7 | Starter rules shipped with tests | rule tests titled `TECH-10:` |
+| TECH-11 | `planned` | Day 9. Bundle budgets with `size-limit` on the `production` build | NFR-PERF-1 | Budgets enforced in CI | tests titled `TECH-11:` · `verify: ci/size` |
+| TECH-12 | `planned` | Day 9. Skills (`.claude/skills/`, §11.2) | §11.2 | All §11.2 skills exist and are covered by at least one eval fixture | tests titled `TECH-12:` |
+| TECH-13 | `planned` | Day 9. Subagents (`.claude/agents/`, §11.3) | §11.3 | All §11.3 subagents exist with the listed tool limits | tests titled `TECH-13:` |
+| TECH-14 | `planned` | Day 2, **before** `messageFor`. Shared libs: `libs/logger`, `libs/messages`, `libs/format` (SPEC.md §9) | §9 Logging, §9 Messages & formatting | Every function unit-tested | unit tests titled `TECH-14:` |

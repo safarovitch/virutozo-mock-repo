@@ -1,0 +1,15 @@
+node_modules/
+dist/
+tmp/
+coverage/
+.nx/cache
+.nx/workspace-data
+test-results/
+playwright-report/
+storybook-static/
+contracts/tsp-output/
+.env
+.env.*
+!.env.example
+.claude/allow-test-change
+.claude/settings.local.json
