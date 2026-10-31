@@ -296,6 +296,19 @@ describe('realtime (WebSocket /api/events)', () => {
     expect(await events.closed).toBe(4403);
   });
 
+  it('AC-SHL-6.4: drop-sockets closes the caller\'s sockets with 1001 and holdMs refuses upgrades for that long (D4-05)', async () => {
+    const cookie = await login(app, 'tenant_admin');
+    const events = await openEvents(app, cookie);
+    expect(await call(app, { method: 'POST', url: '/api/__test/drop-sockets', cookie, body: { holdMs: 300 } })).toMatchObject({ status: 204 });
+    expect(await events.closed).toBe(1001);
+    expect(await call(app, { url: '/api/events', cookie, headers: { origin: ORIGIN } })).toMatchObject({ status: 503 });
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    const again = await openEvents(app, cookie);
+    expect(again.closeCode()).toBeUndefined();
+    again.ws.terminate();
+    expect(await call(app, { method: 'POST', url: '/api/__test/drop-sockets', cookie, body: { holdMs: -1 } })).toMatchObject({ status: 422 });
+  });
+
   it('TECH-3: the 6th socket of one session closes with 4429', async () => {
     const cookie = await login(app, 'tenant_admin');
     const sockets = [];

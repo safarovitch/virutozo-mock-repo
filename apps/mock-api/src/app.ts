@@ -420,7 +420,13 @@ export async function buildMockApi(config: MockApiConfig) {
   });
 
   // ── Realtime ──
-  app.get('/api/events', { websocket: true, preValidation: guard('events') }, (socket, req) => {
+  // `POST /api/__test/drop-sockets { holdMs }` refuses new upgrades for a while (D4-05): token → until, '*' = all.
+  const heldUntil = new Map<string, number>();
+  const refuseHeld = async (req: FastifyRequest, reply: FastifyReply) => {
+    const until = Math.max(heldUntil.get('*') ?? 0, heldUntil.get((req.session as Session).token) ?? 0);
+    if (Date.now() < until) return sendProblem(reply, 503, 'INTERNAL');
+  };
+  app.get('/api/events', { websocket: true, preValidation: [guard('events'), refuseHeld] }, (socket, req) => {
     const origin = req.headers.origin;
     if (!origin || !config.appOrigins.includes(origin)) return socket.close(CLOSE.originRejected, 'origin rejected');
     hub.add(socket, req.session as Session);
@@ -486,6 +492,13 @@ export async function buildMockApi(config: MockApiConfig) {
     app.post('/api/__test/drop-sockets', async (req, reply) => {
       const all = wantsAll(req);
       const token = callerToken(req);
+      const holdMs = (req.body as { holdMs?: unknown } | undefined)?.holdMs;
+      if (holdMs !== undefined && (typeof holdMs !== 'number' || holdMs < 0 || holdMs > 60_000))
+        return sendProblem(reply, 422, 'VALIDATION_FAILED', { errors: [{ field: 'holdMs', message: 'holdMs must be 0–60000' }] });
+      if (holdMs) {
+        const key = all ? '*' : token;
+        if (key) heldUntil.set(key, Date.now() + holdMs);
+      }
       hub.closeSessions((s) => all || s.token === token, CLOSE.goingAway, 'dropped by test');
       return reply.code(204).send();
     });
