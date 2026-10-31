@@ -4,5 +4,7 @@ packages:
   - tools/*
   - contracts
 allowBuilds:
+  esbuild: false
   lefthook: true
   nx: true
+  vue-demi: false

@@ -9,6 +9,6 @@
 **Local commands:** `pnpm nx run mf-contract:test` · `pnpm nx run mf-contract:typecheck`.
 
 **Local pitfalls**
-- `src/model.ts` is hand-made until TECH-2 (D1-01); then use `import type` from `@nimbus/api-client/model` only, never a value import (F11).
+- `src/model.ts` re-exports the generated models as types only; `eslint.config.mjs` rejects value imports from `@nimbus/api-client` (F11).
 - Changing a payload's shape needs a new event name or an ADR.
 - Keep `createRootBus` free of framework and logger imports; errors go through `onError`.

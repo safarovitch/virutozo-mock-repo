@@ -1,0 +1,42 @@
+{
+  "name": "@nimbus/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./model": "./src/generated/model/index.ts",
+    "./react": "./src/react.ts",
+    "./vue": "./src/vue.ts",
+    "./zod": "./src/zod.ts",
+    "./msw": "./src/msw.ts"
+  },
+  "scripts": {
+    "generate": "orval --config orval.config.mjs && node scripts/response-schemas.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@nimbus/format": "workspace:*",
+    "@nimbus/logger": "workspace:*",
+    "@nimbus/messages": "workspace:*",
+    "@tanstack/react-query": "5.105.0",
+    "@tanstack/vue-query": "5.105.0",
+    "zod": "4.6.7"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "vue": "^3.5.0"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "10.6.0",
+    "msw": "3.0.3",
+    "orval": "8.45.0",
+    "react": "19.3.1",
+    "vue": "3.5.44",
+    "yaml": "2.9.1"
+  },
+  "nx": {
+    "name": "api-client"
+  }
+}

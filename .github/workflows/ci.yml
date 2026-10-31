@@ -26,8 +26,26 @@ jobs:
           node-version-file: .nvmrc
       - run: node --test '.claude/hooks/__tests__/*.test.mjs'
 
+  contract-check:
+    name: ci/contract-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm contract:build
+      - run: pnpm exec nx run contracts:contract-lint
+      - run: pnpm api:generate
+      - name: Contract and generated client are up to date
+        run: git diff --exit-code contracts/openapi.yaml libs/api-client/src/generated
+
   affected:
     name: ci/affected
+    needs: contract-check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

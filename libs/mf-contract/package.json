@@ -7,11 +7,13 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.lib.json",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint ."
   },
   "nx": {
     "name": "mf-contract"
+  },
+  "dependencies": {
+    "@nimbus/api-client": "workspace:*"
   }
 }

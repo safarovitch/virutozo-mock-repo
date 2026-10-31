@@ -33,6 +33,15 @@
       ],
       "@nimbus/messages": [
         "./libs/messages/src/index.ts"
+      ],
+      "@nimbus/api-client": [
+        "./libs/api-client/src/index.ts"
+      ],
+      "@nimbus/api-client/*": [
+        "./libs/api-client/src/*.ts"
+      ],
+      "@nimbus/api-client/model": [
+        "./libs/api-client/src/generated/model/index.ts"
       ]
     }
   }
