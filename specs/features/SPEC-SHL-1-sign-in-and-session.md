@@ -37,4 +37,4 @@ Shared rules: [mf-contract](../shared/mf-contract.md) · [realtime](../shared/re
 | **AC-SHL-1.10** | A mutating request without `X-Nimbus-Csrf`, or with a foreign `Origin`, gets 403 `FORBIDDEN` (mock-api integration test). | `planned` |
 | **AC-SHL-1.12** | Signing out after the session already expired still lands on `/login` with no error shown. | `planned` |
 | **AC-SHL-1.13** | Reloading `/tenants/t_acme?tab=quotas` through the gateway (as `provider_admin`) shows the same view. | `planned` |
-| **AC-SHL-1.14** | A request for a missing file under `/remotes/storage/` returns 404, not `index.html`. | `planned` |
+| **AC-SHL-1.14** | A request for a missing file under `/remotes/storage/` returns 404, not `index.html`. | `done` |
