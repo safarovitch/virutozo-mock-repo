@@ -40,10 +40,10 @@ Shared rules: [mf-contract](../shared/mf-contract.md) · [realtime](../shared/re
 
 | ID | Criterion | Status |
 |---|---|---|
-| **AC-TSK-1.1** | A task appears in the task center within 100 ms of the area receiving its 2xx response, whether or not a WebSocket update has already arrived (component test with fake timers). | `in-progress` |
-| **AC-TSK-1.2** | Progress bars use `role="progressbar"` with `aria-valuenow`. | `in-progress` |
-| **AC-TSK-1.3** | Failed tasks show the mapped message for their error code and, when `canOpen` allows, a *View resource* link. | `in-progress` |
-| **AC-TSK-1.4** | A `seq: 2` update followed by `task:started` (`seq: 0`) leaves the task at its `seq: 2` state (unit test). | `in-progress` |
-| **AC-TSK-1.5** | A `succeeded` task never changes back to `running`. | `in-progress` |
-| **AC-TSK-1.6** | For tenant roles, the `tenant.provision` task shows "acme" as plain text, not a link. | `in-progress` |
+| **AC-TSK-1.1** | A task appears in the task center within 100 ms of the area receiving its 2xx response, whether or not a WebSocket update has already arrived (component test with fake timers). | `done` |
+| **AC-TSK-1.2** | Progress bars use `role="progressbar"` with `aria-valuenow`. | `done` |
+| **AC-TSK-1.3** | Failed tasks show the mapped message for their error code and, when `canOpen` allows, a *View resource* link. | `done` |
+| **AC-TSK-1.4** | A `seq: 2` update followed by `task:started` (`seq: 0`) leaves the task at its `seq: 2` state (unit test). | `done` |
+| **AC-TSK-1.5** | A `succeeded` task never changes back to `running`. | `done` |
+| **AC-TSK-1.6** | For tenant roles, the `tenant.provision` task shows "acme" as plain text, not a link. | `done` |
 | **AC-TSK-1.7** | *View resource* on a VM task opens that VM's drawer (SPEC-CMP-5). | `in-progress` |

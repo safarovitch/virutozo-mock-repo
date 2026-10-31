@@ -28,7 +28,7 @@ Shared rules: [mf-contract](../shared/mf-contract.md) · [realtime](../shared/re
 | **AC-SHL-1.1** | Given a `tenant_viewer`, when they sign in, then they land on `/compute`. | `done` |
 | **AC-SHL-1.2** | Given a `provider_admin`, when they sign in, then they land on `/tenants`. | `done` |
 | **AC-SHL-1.3** | Given any signed-in user, when they sign out, then they land on `/login`, browser *Back* stays on `/login`, and after signing in as `tenant_viewer` no tenant rows from the previous session are shown. (Unit test: sign-out clears the shell's query client; remote clients go away with unmount.) | `in-progress` |
-| **AC-SHL-1.4** | Given the session expires (API returns 401; e2e uses `POST /api/__test/expire-session`), then the user is redirected to `/login?reason=expired&returnTo=<current path>` and sees `errors.UNAUTHENTICATED` "Your session expired. Please sign in again." | `in-progress` |
+| **AC-SHL-1.4** | Given the session expires (API returns 401; e2e uses `POST /api/__test/expire-session`), then the user is redirected to `/login?reason=expired&returnTo=<current path>` and sees `errors.UNAUTHENTICATED` "Your session expired. Please sign in again." | `done` |
 | **AC-SHL-1.5** | Given a signed-in `tenant_admin` or `tenant_viewer`, when they open `/`, then they are redirected to `/compute`. | `done` |
 | **AC-SHL-1.6** | Given a signed-in `provider_admin` on `/tenants/t_acme?status=active`, or a signed-in `tenant_admin` on `/compute`, when they reload the page, then they stay signed in on the same URL, with no visit to `/login`. | `done` |
 | **AC-SHL-1.7** | Given a signed-out user, when they open `/tenants/t_acme?status=active` and sign in as `provider_admin`, then they land on `/tenants/t_acme?status=active`. | `done` |
