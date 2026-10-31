@@ -44,8 +44,16 @@ export interface RootBusOptions {
    * false (production): it's dropped and reported through onError.
    */
   strict?: boolean;
-  /** Called for subscriber errors (RT-8) and dropped publishes. Defaults to console.error. */
+  /**
+   * Called for subscriber errors (RT-8) and for dropped remote publishes (the error is a `BusPublishError`).
+   * `subscriber` is the scope that threw or published. Defaults to console.error.
+   */
   onError?: (error: unknown, info: { event: string; subscriber: string }) => void;
+}
+
+/** A remote published an event outside `RemotePublishable` (thrown in strict mode, reported otherwise). */
+export class BusPublishError extends Error {
+  override name = 'BusPublishError';
 }
 
 const REMOTE_PUBLISHABLE: ReadonlySet<string> = new Set<RemotePublishable>([
@@ -103,7 +111,7 @@ export function createRootBus(options: RootBusOptions = {}): RootBus {
       return {
         publish(type, payload) {
           if (!REMOTE_PUBLISHABLE.has(type)) {
-            const error = new Error(`Remote "${source}" may not publish "${type}"`);
+            const error = new BusPublishError(`Remote "${source}" may not publish "${type}"`);
             if (strict) throw error;
             onError(error, { event: type, subscriber: source });
             return;

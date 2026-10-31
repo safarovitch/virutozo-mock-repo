@@ -43,6 +43,12 @@
       "@nimbus/api-client/model": [
         "./libs/api-client/src/generated/model/index.ts"
       ],
+      "@nimbus/realtime": [
+        "./libs/realtime/src/index.ts"
+      ],
+      "@nimbus/test-utils": [
+        "./libs/test-utils/src/index.ts"
+      ],
       "@nimbus/auth": [
         "./libs/auth/src/index.ts"
       ],
