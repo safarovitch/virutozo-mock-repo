@@ -6,7 +6,7 @@
 
 **Owns:** the resolution order (SPEC.md §2.2), the production CSP (generated from `config/remotes.gateway.json`), `FAIL_REMOTES` and `/__test/fail-remotes`.
 
-**Local commands:** `NIMBUS_MODE=e2e node apps/gateway/src/main.mjs` · `pnpm nx run gateway:test` · `PORT=8090 …` when 8080 is busy.
+**Local commands:** `NIMBUS_MODE=e2e node apps/gateway/src/main.mjs` · `pnpm nx run gateway:test` · `GATEWAY_PORT=8090 …` when 8080 is busy (the gateway reads `GATEWAY_PORT`, never `PORT`).
 
 **Local pitfalls**
 - `NIMBUS_MODE` is required; never read `NODE_ENV`.

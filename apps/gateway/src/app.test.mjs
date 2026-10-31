@@ -59,6 +59,12 @@ describe('parseConfig', () => {
     expect(parseConfig({ NIMBUS_MODE: 'e2e', TLS: '1', TLS_CERT: 'c', TLS_KEY: 'k' }).port).toBe(8443);
   });
 
+  it('TECH-1: reads its port from GATEWAY_PORT, never from PORT', () => {
+    expect(parseConfig({ NIMBUS_MODE: 'e2e', GATEWAY_PORT: '8090' }).port).toBe(8090);
+    expect(parseConfig({ NIMBUS_MODE: 'e2e', PORT: '4000' }).port).toBe(8080);
+    expect(() => parseConfig({ NIMBUS_MODE: 'e2e', GATEWAY_PORT: 'http' })).toThrow();
+  });
+
   it('TECH-1: FAIL_REMOTES accepts known remote names only', () => {
     expect([...parseConfig({ NIMBUS_MODE: 'demo', FAIL_REMOTES: 'storage, compute' }).failRemotes]).toEqual(['storage', 'compute']);
     expect(() => parseConfig({ NIMBUS_MODE: 'demo', FAIL_REMOTES: 'billing' })).toThrow();

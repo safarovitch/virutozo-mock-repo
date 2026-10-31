@@ -1,9 +1,11 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
+import { gatewayPort } from '../../tools/gateway-port.mjs';
 
-// The gateway serves e2e-mode builds on one origin (ADR-0005). PORT defaults to 8080; override it
-// when 8080 is busy locally (both the gateway and this config read it).
-const PORT = Number(process.env.PORT ?? 8080);
+// The gateway serves e2e-mode builds on one origin (ADR-0005). GATEWAY_PORT (default 8080, local
+// override in `.env`) is resolved once here and passed to the stack, so baseURL, the gateway and
+// APP_ORIGINS all use the same port.
+const PORT = gatewayPort();
 const REPO = fileURLToPath(new URL('../../', import.meta.url));
 
 export default defineConfig({
@@ -20,7 +22,7 @@ export default defineConfig({
     command: 'pnpm e2e:stack',
     cwd: REPO,
     url: `http://localhost:${PORT}/remotes.json`,
-    env: { PORT: String(PORT) },
+    env: { GATEWAY_PORT: String(PORT) },
     reuseExistingServer: !process.env.CI,
     timeout: 300_000,
   },

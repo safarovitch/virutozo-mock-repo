@@ -129,7 +129,7 @@ The remaining tenants have `resellerId: null` (direct customers of the provider)
 | `MOCK_LATENCY_MS` | from mode | added to every HTTP response |
 | `MOCK_FAILURE_RATE` | from mode | reboot failure rate |
 | `MOCK_SESSION_TTL_S` | 28800 | session lifetime; also drives socket expiry (4401) |
-| `APP_ORIGINS` | `http://localhost:8080,http://localhost:4200,https://localhost:8443` | allowed `Origin` values for mutating requests and WebSocket upgrades (gateway, shell dev server, nightly HTTPS gateway). `pnpm e2e:stack` / `demo:local` derive the gateway entry from `PORT` (D2-09) |
+| `APP_ORIGINS` | `http://localhost:8080,http://localhost:4200,https://localhost:8443` | allowed `Origin` values for mutating requests and WebSocket upgrades (gateway, shell dev server, nightly HTTPS gateway). `pnpm e2e:stack` / `demo:local` derive the gateway entry from `GATEWAY_PORT` (D2-09) |
 
 Test-only endpoints, under `/api/__test/` so the gateway proxies them and the `Path=/api` session cookie is sent. They exist only when `NIMBUS_MODE` is `dev` or `e2e`, never in `demo`:
 
@@ -155,7 +155,7 @@ Resolution order (SPEC.md §2.2):
 | Var | Default | Use |
 |---|---|---|
 | `NIMBUS_MODE` | — (required) | `dev` · `e2e` · `demo`; test endpoints only in `dev` / `e2e` |
-| `PORT` | 8080 (8443 with `TLS=1`) | |
+| `GATEWAY_PORT` | 8080 (8443 with `TLS=1`) | local stacks also read it from `.env` (`.env.example` sets 8090); Playwright's `baseURL` and `APP_ORIGINS` use the same value |
 | `TLS` | (unset) | `1` → serve HTTPS with a self-signed cert, used by the nightly cross-browser suite at `https://localhost:8443` |
 | `MOCK_API_URL` | `http://localhost:4000` | proxy target |
 | `FAIL_REMOTES` | (unset) | comma-separated remote names, e.g. `storage` → 503 for `/remotes/storage/*` (live demo) |

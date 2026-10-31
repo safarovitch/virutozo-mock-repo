@@ -16,7 +16,7 @@ const EnvSchema = z
     NIMBUS_MODE: z.enum(['dev', 'e2e', 'demo'], {
       error: 'NIMBUS_MODE is required and must be dev, e2e or demo',
     }),
-    PORT: z.coerce.number().int().positive().optional(),
+    GATEWAY_PORT: z.coerce.number().int().positive().max(65535).optional(),
     TLS: z.enum(['0', '1']).default('0'),
     TLS_CERT: z.string().optional(),
     TLS_KEY: z.string().optional(),
@@ -49,7 +49,7 @@ export function parseConfig(env) {
   const tls = e.TLS === '1' ? { cert: /** @type {string} */ (e.TLS_CERT), key: /** @type {string} */ (e.TLS_KEY) } : null;
   return {
     mode: e.NIMBUS_MODE,
-    port: e.PORT ?? (tls ? 8443 : 8080),
+    port: e.GATEWAY_PORT ?? (tls ? 8443 : 8080),
     tls,
     mockApiUrl: e.MOCK_API_URL,
     failRemotes: new Set(e.FAIL_REMOTES),

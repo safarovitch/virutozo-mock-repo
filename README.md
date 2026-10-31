@@ -26,7 +26,7 @@ pnpm install
 | `pnpm build` · `pnpm lint` · `pnpm typecheck` · `pnpm test` | Every project, through Nx. |
 | `pnpm test:hooks` | Tests for the Claude Code hooks in `.claude/hooks/`. |
 
-If port 8080 is busy on your machine, run `PORT=8090 pnpm e2e` (the gateway and Playwright both read `PORT`).
+If port 8080 is busy on your machine, copy `.env.example` to `.env` (it sets `GATEWAY_PORT=8090`) or run `GATEWAY_PORT=8090 pnpm e2e`. The gateway, Playwright's `baseURL` and mock-api's `APP_ORIGINS` all follow `GATEWAY_PORT`.
 
 | Port | Service |
 |---|---|
