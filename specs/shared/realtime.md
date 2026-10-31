@@ -227,7 +227,7 @@ Rules:
 - **WS-1** Client reconnects with exponential backoff (1s, 2s, 4s … max 30s) plus jitter.
 - **WS-2** After reconnect, client refetches active queries (resync), because events may have been missed.
 - **WS-3** Events update the TanStack Query cache directly (`setQueryData`); updates arriving faster than once per animation frame are batched. Who writes which cache, and how events reach remotes, is defined in [realtime](./realtime.md) (RT-1…9).
-- **WS-4** Connection state is visible in the shell header (connected / reconnecting / offline), in an element with `role="status"` and name "Connection".
+- **WS-4** Connection state is visible in the shell header (connected / reconnecting / offline), in an element with `role="status"` and name "Connection". It is always visible: a dot plus the state text, so colour is never the only signal (D4-03).
 - **WS-5** Close codes (also in the contract's `x-close-codes`):
 
   | Code | Meaning | Client |

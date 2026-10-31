@@ -137,7 +137,7 @@ Test-only endpoints, under `/api/__test/` so the gateway proxies them and the `P
 |---|---|---|
 | `POST /api/__test/reset` | — | everything: re-seed (seeded task times become relative to now) |
 | `POST /api/__test/expire-session` | `{ "all": true }` optional | the caller's session (cookie); `all` expires every session (AC-SHL-1.4) |
-| `POST /api/__test/drop-sockets` | `{ "all": true }` optional | the caller's sockets, closed with 1001; `all` drops every socket (AC-SHL-6.4) |
+| `POST /api/__test/drop-sockets` | `{ "all": true, "holdMs": 3000 }` both optional | the caller's sockets, closed with 1001; `all` drops every socket. For `holdMs` (default 0) new upgrades from the affected sessions are refused with 503, so the client stays `reconnecting` long enough to assert (AC-SHL-6.4, D4-05) |
 | `POST /api/__test/fail-next-task` | `{ kind, code }` | global: the next task of `kind` fails with `code` (AC-TEN-4.3) |
 | `POST /api/__test/set-usage` | `{ tenantId, usedBytes }` | that tenant's storage usage, e.g. to fill the quota (AC-STO-2.3) |
 | `POST /api/__test/emit` | any `ServerEvent` | broadcast, subject to RT-12 scoping |
@@ -219,6 +219,13 @@ Shared keys live in `libs/messages`; area keys in `apps/<area>/src/messages/en.t
 | `tenantStatus.suspendedBanner` | This tenant is suspended. You can view resources but can't change them. | AC-SHL-8.2 | `draft` |
 | `status.tenant.active` / `suspended` / `provisioning` / `error` | Active / Suspended / Provisioning / Error | AC-SHL-8.1 | `draft` |
 | `connections.connecting` | Connecting… | WS-7 | `draft` |
+| `tasks.title` | Tasks | SPEC-TSK-1, D4-01 | `draft` |
+| `tasks.running` / `tasks.recent` | Running / Recent | SPEC-TSK-1, D4-02 | `draft` |
+| `tasks.empty` | No tasks in the last 24 hours. | SPEC-TSK-1, D4-02 | `draft` |
+| `tasks.viewResource` | View resource | AC-TSK-1.3 | `draft` |
+| `tasks.progressLabel` | {kind}: {name} | AC-TSK-1.2 | `draft` |
+| `taskKind.vm.start` / `vm.stop` / `vm.reboot` / `tenant.suspend` / `tenant.resume` / `tenant.provision` | Start VM / Stop VM / Reboot VM / Suspend tenant / Resume tenant / Provision tenant | SPEC-TSK-1 | `draft` |
+| `status.task.queued` / `running` / `succeeded` / `failed` | Queued / Running / Succeeded / Failed | SPEC-TSK-1 | `draft` |
 | `tenants.empty` | No tenants yet | SPEC-TEN-1 states | `draft` |
 | `tenants.noMatches` | No tenants match your filters | SPEC-TEN-1 states | `draft` |
 | `tenants.nameInvalid` | Use lowercase letters, numbers and hyphens. | AC-TEN-2.1 | `draft` |

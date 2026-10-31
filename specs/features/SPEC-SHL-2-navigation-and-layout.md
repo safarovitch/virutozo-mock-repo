@@ -21,5 +21,5 @@ Shared rules: [mf-contract](../shared/mf-contract.md) · [realtime](../shared/re
 | ID | Criterion | Status |
 |---|---|---|
 | **AC-SHL-2.1** | Given a `tenant_admin`, then the sidebar shows Compute and Storage, and not Tenants. | `done` |
-| **AC-SHL-2.2** | Given 2 running tasks, then the task center badge shows "2" and has accessible label `shell.runningTasks_other` "2 running tasks". | `planned` |
+| **AC-SHL-2.2** | Given 2 running tasks, then the task center badge shows "2" and has accessible label `shell.runningTasks_other` "2 running tasks". | `in-progress` |
 | **AC-SHL-2.3** | All sidebar items are reachable and operable by keyboard; the current item has `aria-current="page"`. | `done` |
