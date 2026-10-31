@@ -85,6 +85,13 @@ test('AC-SHL-1.3: sign-out lands on /login and Back stays there', async ({ page 
 });
 
 test('AC-SHL-1.12: signing out after the session expired lands on /login with no error', async ({ page }) => {
+  // Since Day 4 the server closes the socket with 4401 as soon as expire-session runs, and the client
+  // redirects on it (AC-SHL-6.6). This AC is about the window before the client hears of the expiry
+  // (the server checks TTL expiry only every 15 s), so the close is held back from the page (D4-16).
+  await page.routeWebSocket('/api/events', (ws) => {
+    const server = ws.connectToServer();
+    server.onClose(() => {});
+  });
   await signIn(page, 'tenant_admin');
   await expireSession(page);
   await page.getByRole('button', { name: /^Account: / }).click();
