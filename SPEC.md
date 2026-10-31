@@ -471,7 +471,7 @@ All text/background pairs meet WCAG AA contrast (checked in CI by a token test).
 | Dialog / ConfirmDialog | focus trap, Escape, type-to-confirm variant | confirm disabled until text matches |
 | Wizard | steps, per-step validation, review | Next blocked on invalid step |
 | Drawer | URL-addressable, focus management | focus returns on close |
-| Toast | `aria-live`, auto-dismiss 5 s, pause on hover | — |
+| Toast | `aria-live`; success/info auto-dismiss after 5 s, paused on hover or focus; errors stay until dismissed (D3-02) | error toast doesn't auto-dismiss |
 | ProgressBar | determinate / indeterminate | aria attributes |
 | UsageBar | thresholds 80 / 95% | warning text rendered |
 | EmptyState, ErrorState, Skeleton | standard states | Retry calls handler |

@@ -16,6 +16,6 @@ Shared rules: [mf-contract](../shared/mf-contract.md) · [realtime](../shared/re
 
 | ID | Criterion | Status |
 |---|---|---|
-| **AC-SHL-3.1** | Given a user without `tenant:read`, when they open `/tenants` directly, then the `shell.noAccess.title` "403 – No access" page is shown with a link to their home area. | `planned` |
-| **AC-SHL-3.2** | Given the UI shows an action but the API returns 403, then a toast says `errors.FORBIDDEN` "You don't have permission to do this." and no state changes. | `planned` |
-| **AC-SHL-3.3** | `<Can>` (React) and `v-can` (Vue) render nothing when the permission is missing and do not flash content before `/me` resolves. | `planned` |
+| **AC-SHL-3.1** | Given a user without `tenant:read`, when they open `/tenants` directly, then the `shell.noAccess.title` "403 – No access" page is shown with a link to their home area. | `in-progress` |
+| **AC-SHL-3.2** | Given the UI shows an action but the API returns 403, then a toast says `errors.FORBIDDEN` "You don't have permission to do this." and no state changes. | `in-progress` |
+| **AC-SHL-3.3** | `<Can>` (React) and `v-can` (Vue) render nothing when the permission is missing and do not flash content before `/me` resolves. | `in-progress` |

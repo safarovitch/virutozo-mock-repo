@@ -195,6 +195,16 @@ Shared keys live in `libs/messages`; area keys in `apps/<area>/src/messages/en.t
 | Key | Text | Used by | Status |
 |---|---|---|---|
 | `shell.noAccess.title` | 403 – No access | AC-SHL-3.1 | `draft` |
+| `auth.title` | Sign in to Nimbus Console | SPEC-SHL-1 | `draft` |
+| `auth.roleLabel` | Sign in as | SPEC-SHL-1 | `draft` |
+| `roles.provider_admin` / `reseller_admin` / `tenant_admin` / `tenant_viewer` | Provider admin / Reseller admin / Tenant admin / Tenant viewer | SPEC-SHL-1, D3-01 | `draft` |
+| `auth.signIn` | Sign in | SPEC-SHL-1 | `draft` |
+| `auth.signOut` | Sign out | SPEC-SHL-1, D3-01 | `draft` |
+| `shell.loading` | Loading… | SPEC-SHL-1 boot | `draft` |
+| `shell.noAccess.body` | You don't have access to this page. | AC-SHL-3.1 | `draft` |
+| `shell.noAccess.goHome` | Go to {area} | AC-SHL-3.1 | `draft` |
+| `shell.notFound` | Page not found | SPEC-SHL-2 | `draft` |
+| `shell.userMenu` | Account | D3-01 | `draft` |
 | `shell.remoteUnavailable` | {area} is temporarily unavailable. | AC-SHL-4.1 | `draft` |
 | `shell.runningTasks_one` / `_other` | {count} running task / {count} running tasks | AC-SHL-2.2 | `draft` |
 | `shell.tenantContext` | {displayName} · {planName} · {status} | AC-SHL-8.1 | `draft` |
