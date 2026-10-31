@@ -42,6 +42,12 @@
       ],
       "@nimbus/api-client/model": [
         "./libs/api-client/src/generated/model/index.ts"
+      ],
+      "@nimbus/auth": [
+        "./libs/auth/src/index.ts"
+      ],
+      "@nimbus/auth/*": [
+        "./libs/auth/src/*"
       ]
     }
   }
