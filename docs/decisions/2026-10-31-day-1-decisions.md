@@ -37,3 +37,8 @@ Hook tests after these changes: 71 passing (`pnpm test:hooks`).
 
 (Recorded under the "What blocks building" rule, for review at the end of the day.)
 
+| ID | Decision (agent) | Why |
+|---|---|---|
+| A1-01 | Rule IDs that D1-03 doesn't assign to a shared topic (NFR, TEST, HOOK, API, T1–T6) stay defined in SPEC.md, together with the sections D1-03 doesn't list (traceability, requirements, API index, design system, harness, CI, ADRs). | D1-03 lists five shared topics and says SPEC.md keeps NFRs and the testing strategy; moving the rest would invent new topics. `trace:check` already scans SPEC.md (E14). |
+| A1-02 | Moved SPEC.md sections (§2.4, §2.5, §5, §6.3, §9 Messages & formatting) keep a one-line stub under their old heading that links to the shared file. Inside feature and shared files, § references to moved sections became links; others became "SPEC.md §n". | Dozens of existing references ("SPEC.md §2.5") keep working without rewriting every file. |
+| A1-03 | Every feature file carries a "Shared rules:" line linking all five shared files, and its front matter adds no fields beyond D1-03's (`id`, `title`, `area`, `day`, `implements`); scope (MVP/Stretch) stays in the heading. Stretch specs (PLN-1, CMP-3) get files and `day: stretch`. | Keeps front matter as decided; one place to find shared rules. |

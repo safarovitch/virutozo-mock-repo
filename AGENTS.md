@@ -4,7 +4,7 @@ You are working in an Nx + pnpm monorepo: a React shell with micro-frontends (Re
 
 ## 1. Before you change anything
 
-1. **Find the IDs.** Every feature task maps to `SPEC-*` / `AC-*` IDs in `specs/features/` (or `SPEC.md` §7 until it's split). Engineering work maps to `TECH-*` IDs (`SPEC.md` §14.1) or existing `NFR-*` / `ADR-*` IDs. If the task has no ID, **stop and ask for one**. Don't invent requirements.
+1. **Find the IDs.** Every feature task maps to `SPEC-*` / `AC-*` IDs in `specs/features/` (shared rules in `specs/shared/`). Engineering work maps to `TECH-*` IDs (`SPEC.md` §14.1) or existing `NFR-*` / `ADR-*` IDs. If the task has no ID, **stop and ask for one**. Don't invent requirements.
 2. **Read the contract.** Check the operations you'll use in `contracts/openapi.yaml`, including `x-permission` and the error codes. Seed data and error messages are in `specs/mock-data.md`.
 3. **Read the local guide.** Each app and lib has its own `AGENTS.md` (at most 30 lines: purpose · framework and key libraries · what it owns · local commands · local pitfalls). It never repeats root rules; it only adds to or narrows them for that folder. Create it in the same PR as the project, and update it whenever a pitfall reaches `docs/agent-log.md`.
 4. **Check versions, not memory.** Several dependencies are newer than your training data (Vite 8, React Router 8, TanStack Table 9, Vitest 5, MSW 3, Storybook 10, TypeScript 6). Before using an API, read the installed types in `node_modules/<pkg>` or its docs. Versions are pinned in `docs/adr/ADR-0001-module-federation-with-vite.md`. Never upgrade, downgrade or add a dependency without saying so in your summary.

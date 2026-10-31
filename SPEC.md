@@ -220,254 +220,11 @@ nimbus-console/
 
 ### 2.4 Micro-frontend contract (`libs/mf-contract`)
 
-Every remote exposes the same framework-agnostic interface so React and Vue remotes are interchangeable for the shell:
-
-```ts
-export interface RemoteContext {
-  basePath: string;                 // e.g. "/compute"
-  path: string;                     // current path below basePath, with search and hash, e.g. "/t_acme?tab=quotas"
-  session: SessionSnapshot;         // user, tenant (TenantSummary | null), permissions[]
-  navigate: (to: string, options?: { replace?: boolean }) => void; // shell owns the URL; replace = no new history entry
-  events: ScopedBus;                // this remote's scope of the root bus (§2.5)
-}
-
-export interface RemoteModule {
-  mount(el: HTMLElement, ctx: RemoteContext): { unmount(): void; update(ctx: RemoteContext): void };
-}
-```
-
-```ts
-// plain frozen data derived from Me
-import type { Role, Permission, TenantSummary } from '@nimbus/api-client/model'; // type-only (F11)
-
-export interface SessionSnapshot {
-  readonly user: { readonly id: string; readonly name: string; readonly email: string };
-  readonly role: Role;                          // display only (RBAC-1)
-  readonly tenant: Readonly<TenantSummary> | null;
-  readonly permissions: readonly Permission[];
-}
-```
-
-Permission checks use `can(snapshot, permission)` from `libs/auth`. On Day 1 the generated models don't exist yet, so `libs/mf-contract` uses minimal hand-made types marked `// TODO(TECH-2): replace with @nimbus/api-client/model`; TECH-2 swaps them for the generated types on Day 2.
-
-`Role`, `Permission` and `TenantSummary` come from the generated contract models, so the snapshot changes when the contract changes. `libs/api-client` exposes them through a dedicated entry point, `@nimbus/api-client/model` (`package.json` `exports` → `src/generated/model/index.ts`), which contains types and enum constants only. `libs/mf-contract` imports them with `import type` only, so it has no runtime dependency on the API client; this is enforced by `@typescript-eslint/consistent-type-imports` and a dependency rule in `libs/mf-contract/eslint.config.mjs` that forbids value imports from `@nimbus/api-client`. Nx project graph: `mf-contract` → `api-client` (type-only).
-
-`update(ctx)` must be implemented. Each remote keeps the context reactive (a ref provided via `provide`/`inject` in Vue, a context provider or store in React), and components read session, permissions and path from it. The shell calls `update` when the path under the remote's `basePath` changes, and on session changes only when `user.id`, `tenant` or `permissions` change (shallow comparison; SPEC-SHL-7).
-
-Rules:
-- **MF-1** The shell owns the browser URL. Remotes use memory routing, sync it to `ctx.path` on `mount` and `update`, and change it only through `ctx.navigate` (with `{ replace: true }` when the change must not add a history entry, see §7 *Drawer URLs*).
-- **MF-2** Shared singletons: `react`, `react-dom`, `@tanstack/react-query`, `@nimbus/design-tokens`, and `@nimbus/ui-kit` for the React apps (shell, tenants, storage). Vue is shared only within the compute remote. The query **library** is shared; cache **instances** are not: every area (shell, tenants, storage, compute) creates its own `QueryClient`.
-- **MF-3** Remotes never import from each other. Cross-remote communication only goes through `EventBus` with typed events.
-- **MF-4** A remote that fails to load or throws shows a contained error panel with *Retry*; the rest of the shell keeps working.
-- **MF-5** After `remote.unmount()`, the shell calls `dispose()` on that remote's bus scope, removing every subscription it still holds.
-- **MF-6** Error boundaries live inside each remote, because a React remote renders into its own React root that the shell's boundary can't see. On `fatal: true` the shell unmounts the remote, disposes its scope and shows the MF-4 panel; `fatal: false` errors are only logged. The shell's own boundary covers load failures and a `mount()` that throws.
-  - **React remotes** wrap their root in an `ErrorBoundary`. Render errors are published as `remote:error { fatal: true }`. Errors the boundary doesn't catch (event handlers, async work) are published with `fatal: false`.
-  - **The Vue remote**'s root component is `<RemoteBoundary>`. It uses `onErrorCaptured` to catch **every** error raised inside Vue components (setup, render, lifecycle hooks, watchers, component event handlers), renders nothing further, publishes `remote:error { fatal: true }` and returns `false`. It never parses Vue's `info` string (a short code in production builds). Errors outside components (`window` `error` / `unhandledrejection` from compute code) are published with `fatal: false`.
-  - **Accepted difference:** event-handler errors are non-fatal in React remotes and fatal in Vue. Both produce exactly one logger entry, and the user is never left with a silently broken view.
+Moved to [`specs/shared/mf-contract.md`](specs/shared/mf-contract.md): `RemoteContext`, `RemoteModule`, `SessionSnapshot` and MF-1…MF-6.
 
 ### 2.5 Realtime and the EventBus
 
-The browser tab has **one** WebSocket, owned by the shell. Remotes never see the socket; they only see the `ScopedBus` they receive in `RemoteContext`.
-
-```
-mock-api ──WS /api/events──▶ libs/realtime (inside shell)
-                               │ 1. validate with generated Zod ServerEvent schema
-                               │ 2. reconnect / backoff (WS-1), close codes (WS-5), status (WS-7)
-                               ▼
-                            root EventBus  ──scope('tenants' | 'storage' | 'compute')──▶ remotes
-             ┌─────────────┬───────────────┼──────────────────┐
-             ▼             ▼               ▼                  ▼
-        shell           tenants (React)  storage (React)   compute (Vue)
-   task center         tenants, quotas   buckets, quotas   VMs, VM tasks
-```
-
-**Why the shell owns it:** one connection per tab instead of three, and one place for auth (session cookie, NFR-SEC-3) and reconnect logic. Remotes stay simple: a remote only knows the bus, so it doesn't care whether events come from a WebSocket, a test or Storybook.
-
-#### Rules
-
-| ID | Rule |
-|---|---|
-| RT-1 | Only `libs/realtime` may open a WebSocket. Remotes never do (lint: `nimbus/no-websocket-outside-realtime`). One socket per tab. |
-| RT-2 | Every message is validated with the generated Zod `ServerEvent` schema. Invalid messages are dropped and logged (`realtime.invalid_message`), never forwarded. |
-| RT-3 | Valid messages are published on the bus as `server:<type>` (e.g. `server:vm.updated`). `heartbeat` is not forwarded. |
-| RT-4 | Ownership is the cache instance (MF-2). Any area may call any operation it has permission for and cache the result in **its own** client; no area touches another area's cache. Query keys always come from Orval's generated helpers (lint: `nimbus/no-handwritten-query-key`). Each area applies server events to its own cache as in the table below. |
-| RT-5 | Consumers batch updates per animation frame before writing to the cache (WS-3). |
-| RT-6 | On `realtime:reconnected`, each area invalidates only its own active queries, because events may have been missed (WS-2). |
-| RT-7 | A remote removes every subscription, and cancels any pending frame, on `unmount()`. A test proves it. MF-5 removes anything it forgot. |
-| RT-8 | An error thrown in one subscriber is caught and logged with the subscriber's scope. It never stops delivery to other subscribers. |
-| RT-9 | `realtime:status` is sticky: a new subscriber immediately (synchronously) receives the latest value. That way a remote mounted later still shows the right connection state. |
-| RT-10 | The root bus lives for **one session**. On sign-out or expiry, the shell unmounts remotes, disposes all scopes, closes the WebSocket and creates a **new** root bus, so sticky status and all subscriptions start fresh. |
-| RT-11 | `realtime:reconnected` is published only after a connection that **follows** a lost one, never on the first connection of a session. |
-| RT-12 | A session receives events about resources it can read, **plus** `tenant.updated` and `quota.updated` for its own tenant (`me.tenant.id`), even without `tenant:read`. Resellers receive events for their own tenants and providers for all. |
-
-**What each area caches and which events it applies (RT-4):**
-
-| Area | Caches | Applies |
-|---|---|---|
-| shell | `getMe`, `listTasks` (task center) | `server:task.updated` (via `mergeTask`); `server:tenant.updated` for the user's own tenant → patch `me.tenant.status` (SPEC-SHL-8) |
-| tenants | `listTenants`, `getTenant`, `getQuotas`, `listTasks?resourceId=` (drawer Activity), `listPlans` | `server:tenant.updated`, `server:quota.updated`, `server:task.updated` for `resource.type = tenant` |
-| storage | `listBuckets`, `getQuotas` (usage card), `listTenants` (admin tenant picker, SPEC-STO-3) | `server:quota.updated`, `server:bucket.updated` |
-| compute | `listVms`, `getVm`, `getTask` for a VM's `activeTaskId` on mount, `listTasks?resourceId=` (VM drawer, SPEC-CMP-5), `listTenants` / `getTenant` (admin tenant picker and context line, SPEC-CMP-4) | `server:vm.updated` (batched per frame), `server:task.updated` for `resource.type = vm` |
-
-#### EventBus API (`libs/mf-contract/src/event-bus.ts`)
-
-```ts
-import type { Task, Vm, Tenant, TenantQuotas, Bucket } from '@nimbus/api-client/model'; // type-only
-
-export interface BusEvents {
-  // ── Shell → remotes: server events (RT-3) ──
-  'server:task.updated':   { task: Task };
-  'server:vm.updated':     { vm: Pick<Vm, 'id' | 'status' | 'ip' | 'activeTaskId'> };
-  'server:tenant.updated': { tenant: Pick<Tenant, 'id' | 'status'> };
-  'server:quota.updated':  { tenantId: string; quotas: TenantQuotas };
-  'server:bucket.updated': { tenantId: string; bucket: Bucket | null; name: string }; // bucket null = deleted
-
-  // ── Shell → remotes: connection lifecycle ──
-  'realtime:status':      { state: 'connecting' | 'connected' | 'reconnecting' | 'offline'; attempt: number }; // sticky (RT-9)
-  'realtime:reconnected': { downtimeMs: number };                                                             // RT-11
-
-  // ── Remotes → shell ──
-  'task:started':    { task: Task };                 // every task-producing 2xx response (SPEC-TSK-1)
-  'toast:show':      { kind: 'success' | 'error' | 'info'; message: string; resource?: { type: string; id: string } };
-  'session:expired': { source: string };             // remote got a 401 → shell redirects to /login?reason=expired
-  'remote:error':    { remote: string; message: string; stack?: string; fatal: boolean }; // MF-6
-}
-
-export type BusEventName = keyof BusEvents;
-export type RemotePublishable = 'task:started' | 'toast:show' | 'session:expired' | 'remote:error';
-
-export interface ScopedBus {
-  publish<K extends RemotePublishable>(type: K, payload: BusEvents[K]): void;
-  subscribe<K extends BusEventName>(
-    type: K,
-    handler: (payload: BusEvents[K], meta: { source: string; ts: number }) => void,
-  ): () => void; // returns unsubscribe
-}
-
-export interface RootBus {
-  publish<K extends BusEventName>(type: K, payload: BusEvents[K]): void;
-  subscribe: ScopedBus['subscribe'];
-  scope(source: string): ScopedBus & { dispose(): void };
-  subscriberCount(source: string): number; // for tests
-}
-
-export declare function createRootBus(): RootBus;
-```
-
-- The shell owns the root bus and passes each remote `rootBus.scope('<remote>')`.
-- Remotes may only publish `RemotePublishable`. This is enforced by types, and at runtime: a disallowed publish throws in dev/test and is dropped and logged in production.
-- Every delivery carries `meta.source`; subscriber errors are logged with the subscriber's scope (RT-8).
-
-Notes on the catalogue:
-- **Payloads come from the generated contract types.** If the contract changes `Vm`, the bus types change too, and TypeScript errors show every place that needs updating.
-- **Toasts go through the shell**, so there's one `aria-live` region for the whole page. That's better for screen readers than one toast system per remote.
-- **Delivery is synchronous and in-memory.** There's no replay except for the sticky `realtime:status`. A remote that mounts later loads fresh data through its queries anyway.
-- **Changing the catalogue:** adding an event is safe. Changing a payload's shape means a new event name or an ADR, the same rule as breaking API changes (API-6).
-
-#### Task merging (`libs/realtime`)
-
-Every task has a `seq` that increases with every change (`0` in the 201/202 response). Every place that caches tasks upserts through one function:
-
-```ts
-export function mergeTask(current: Task | undefined, incoming: Task): Task {
-  if (!current) return incoming;
-  if (isTerminal(current.status)) return current;           // succeeded/failed never revert
-  return incoming.seq > current.seq ? incoming : current;   // stale or duplicate → ignored
-}
-```
-
-A late `task:started` (`seq: 0`) can never overwrite newer progress, in any arrival order. Every task-producing response publishes `task:started` from the area that called it:
-
-| Operation | Response | Publisher |
-|---|---|---|
-| `createTenant` | `201 TenantCreated { tenant, task }` | tenants (wizard) |
-| `suspendTenant`, `resumeTenant` | `202 Task` | tenants |
-| `runVmAction` | `202 Task` | compute |
-
-#### How it reaches the Vue remote
-
-Mounting: the compute remote receives its scoped bus in `ctx`, provides it and a reactive context to all its components, and implements `update` (§2.4).
-
-```ts
-// apps/compute/src/mount.ts
-import { createApp, shallowRef } from 'vue';
-import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query';
-import type { RemoteModule, RemoteContext } from '@nimbus/mf-contract';
-import { configureApiClient } from '@nimbus/api-client';
-import RemoteBoundary from './RemoteBoundary.vue';   // root: onErrorCaptured → remote:error { fatal: true } (MF-6)
-import { BUS_KEY, CTX_KEY } from './realtime/bus';
-
-export const mount: RemoteModule['mount'] = (el, initial) => {
-  const ctx = shallowRef<RemoteContext>(initial);  // components read session, permissions and path from it
-  const queryClient = new QueryClient();           // own cache instance (MF-2)
-  configureApiClient({ onUnauthorized: () => ctx.value.events.publish('session:expired', { source: 'compute' }) });
-  const app = createApp(RemoteBoundary);            // wraps App; never parses Vue's `info` string
-  app.provide(BUS_KEY, initial.events);
-  app.provide(CTX_KEY, ctx);
-  app.use(VueQueryPlugin, { queryClient });
-  // Errors outside components (window `error` / `unhandledrejection` from compute code) → remote:error { fatal: false }
-  app.mount(el);
-  return {
-    unmount: () => app.unmount(),
-    update: (next) => { ctx.value = next; },       // memory router syncs to next.path (MF-1)
-  };
-};
-```
-
-A composable that subscribes and cleans up automatically (RT-7):
-
-```ts
-// apps/compute/src/realtime/useBusEvent.ts
-import { inject, onUnmounted } from 'vue';
-import type { BusEventName, BusEvents, ScopedBus } from '@nimbus/mf-contract';
-import { BUS_KEY } from './bus';
-
-export function useBusEvent<K extends BusEventName>(type: K, handler: (p: BusEvents[K]) => void) {
-  const bus = inject(BUS_KEY) as ScopedBus;
-  const off = bus.subscribe(type, handler);
-  onUnmounted(off);
-}
-```
-
-Writing VM updates into the cache, batched per frame (RT-4, RT-5, RT-6, RT-7):
-
-```ts
-// apps/compute/src/realtime/useVmRealtime.ts
-import { onUnmounted } from 'vue';
-import { useQueryClient } from '@tanstack/vue-query';
-import { useBusEvent } from './useBusEvent';
-import { applyVmPatches, type VmPatch } from './vmPatches';
-
-export function useVmRealtime() {
-  const qc = useQueryClient();
-  const pending = new Map<string, VmPatch>();   // last update per VM wins
-  let frame = 0;
-
-  const flush = () => {
-    frame = 0;
-    qc.setQueriesData({ queryKey: ['vms'] }, (page) => applyVmPatches(page, pending));
-    pending.clear();
-  };
-
-  useBusEvent('server:vm.updated', ({ vm }) => {
-    pending.set(vm.id, vm);
-    if (!frame) frame = requestAnimationFrame(flush);   // 50 events in one frame → one cache write (AC-CMP-1.2)
-  });
-
-  useBusEvent('realtime:reconnected', () => qc.invalidateQueries({ queryKey: ['vms'] })); // AC-CMP-1.3
-
-  onUnmounted(() => cancelAnimationFrame(frame));       // RT-7: no write after unmount
-}
-```
-
-(`['vms']` stands for the key prefix from Orval's generated helper; RT-4 forbids hand-written keys in real code.)
-
-#### End to end: the user clicks *Reboot* in the Vue remote
-
-1. Compute calls `runVmAction`, gets `202 { task }` (`seq: 0`), sets the row to `rebooting` optimistically and publishes `task:started`. The shell's task center shows it immediately (AC-TSK-1.1).
-2. The mock API sends `task.updated` events with progress and increasing `seq`. The shell validates each one and publishes `server:task.updated`. The task center merges it into its own cache with `mergeTask`; compute merges `resource.type = vm` tasks into its own Vue cache the same way and shows the row's progress % (RT-4).
-3. When the task finishes, the server sends `vm.updated` with status `running`. The shell publishes `server:vm.updated`, compute batches it into the next frame, and the row updates with no HTTP request (AC-CMP-1.1).
-4. If the task failed, compute publishes `toast:show` with the mapped message for the task's `error.code` (MSG-3), and the shell shows it.
+Moved to [`specs/shared/realtime.md`](specs/shared/realtime.md): one WebSocket owned by the shell, RT-1…RT-12, the EventBus catalogue, task merging and the Vue example.
 
 ---
 
@@ -488,15 +245,17 @@ Areas: `SHL` shell · `TEN` tenants · `STO` storage · `CMP` compute · `TSK` t
 
 ### 3.1 AC status
 
-Every AC has exactly one status, written right after its ID. Until the split (under TECH-1), ACs live in §7. After it, ACs and their statuses live **only** in `specs/features/SPEC-*.md`, §7 becomes an index with links, and `trace:check` parses `specs/features/` and `specs/shared/` and fails if an ID is defined in more than one file. The split is the **first commit of TECH-1**:
+Every AC has exactly one status, in the Status column of its spec's AC table. Since the split (first commit of TECH-1, Day 1), ACs and their statuses live **only** in `specs/features/SPEC-*.md`, §7 is an index with links, and `trace:check` parses `specs/features/` and `specs/shared/` and fails if an ID is defined in more than one file. The split is the **first commit of TECH-1**:
 - **Feature specs:** one file each, flat, named `specs/features/SPEC-<AREA>-<n>-<slug>.md` (e.g. `SPEC-TEN-2-create-tenant-wizard.md`). Front matter: `id`, `title`, `area`, `day`, `implements` (US IDs). Then the sections, and an **AC table with a Status column** (`| ID | Criterion | Status |`).
 - **Shared blocks:** `specs/shared/<topic>.md`, one file per topic: `url-conventions.md` (drawer URLs, `tenantId`, history rules), `rbac.md` (matrix, RBAC-1…6), `realtime.md` (RT and WS rules, bus catalogue), `messages-and-format.md` (MSG-1…4, the `libs/format` functions), `mf-contract.md` (MF rules, `RemoteContext`, `SessionSnapshot`). Feature specs link to shared files and never copy from them. Rule IDs live only in shared files.
-- **SPEC.md keeps** the overview, architecture summary, NFRs, testing strategy, build plan, demo script, Definition of Done, and an index linking every feature and shared file.
+- **SPEC.md keeps** the overview, architecture summary, NFRs, testing strategy, build plan, demo script, Definition of Done, and an index linking every feature and shared file. It also keeps the sections D1-03 doesn't move (traceability, requirements, API contract index, design system, harness, CI, ADRs); their rule IDs (NFR, TEST, HOOK, API, T1–T6) stay defined in SPEC.md, which `trace:check` scans too. Moved sections keep a one-line stub under their old heading so references like "SPEC.md §2.5" still lead to the right file.
 
 Until the split exists, until `specs/features/` exists, `trace:check` runs only T1 and prints a warning. Example lines use the placeholder `AC-XXX-n.m` inside code blocks, and the parser ignores code blocks:
 
 ```md
-- **AC-XXX-n.m** `planned` Given …, when …, then …
+| ID | Criterion | Status |
+|---|---|---|
+| **AC-XXX-n.m** | Given …, when …, then … | `planned` |
 ```
 
 | Status | Meaning | Set by |
@@ -574,47 +333,7 @@ Withdrawn IDs are **retired**, never reused, and listed with their replacements 
 
 ## 5. Roles & permissions (RBAC)
 
-### 5.1 Permission strings
-Permissions are strings returned by `GET /me`. The UI **never** checks role names, only permissions (`RBAC-1`).
-
-```
-tenant:read  tenant:create  tenant:update  tenant:suspend
-quota:read   quota:update
-vm:read      vm:operate     vm:create
-bucket:read  bucket:create  bucket:delete
-task:read
-plan:read
-```
-
-### 5.2 Matrix
-
-| Permission | provider_admin | reseller_admin | tenant_admin | tenant_viewer |
-|---|:-:|:-:|:-:|:-:|
-| tenant:read | ✅ all | ✅ own | — | — |
-| tenant:create | ✅ | ✅ | — | — |
-| tenant:update | ✅ | ✅ own | — | — |
-| tenant:suspend | ✅ | — | — | — |
-| quota:read | ✅ | ✅ | ✅ | ✅ |
-| quota:update | ✅ | ✅ own | — | — |
-| vm:read | ✅ | ✅ | ✅ | ✅ |
-| vm:operate | ✅ | — | ✅ | — |
-| vm:create | — | — | ✅ | — |
-| bucket:read | ✅ | ✅ | ✅ | ✅ |
-| bucket:create / delete | — | — | ✅ | — |
-| task:read | ✅ | ✅ | ✅ | ✅ |
-| plan:read | ✅ | ✅ | — | — |
-
-Scope (all / own) is enforced by the **API**. The UI only hides or disables; it is never the security boundary (`RBAC-2`).
-
-The Tenants area (`/tenants`) is the provider/reseller management area, so tenant roles don't get `tenant:read`. They reach their own tenant's data through `vm:read`, `bucket:read` and `quota:read`, scoped by the server to `me.tenant.id`, and see a read-only summary of their tenant in `Me.tenant` (SPEC-SHL-8). Their home area is **`/compute`** (SPEC-SHL-1).
-
-### 5.3 UI rules
-- **RBAC-1** Use `can('tenant:suspend')` / `<Can permission="…">` / `v-can="'…'"` — never compare role names.
-- **RBAC-2** The UI is not a security boundary. Every mutating API call can still return `403`; handle it (`AC-SHL-3.2`).
-- **RBAC-3** Navigation items are hidden when the user lacks the area's `*:read` permission.
-- **RBAC-4** Actions the user can't perform are **hidden** in toolbars; in contexts where the user should know the action exists (e.g. row menu), they're **disabled with a tooltip** `rbac.disabledTooltip` "You don't have permission to {action}.", with `{action}` from the `actions.*` keys (`specs/mock-data.md` §10).
-- **RBAC-5** Directly visiting a URL without permission shows a *403 – No access* page, not a blank screen.
-- **RBAC-6** Permission string constants come from the generated contract enum `Permission`; hard-coded strings are a lint error (`nimbus/no-raw-permission`).
+Moved to [`specs/shared/rbac.md`](specs/shared/rbac.md): permission strings, the role matrix and RBAC-1…RBAC-6.
 
 ---
 
@@ -662,36 +381,7 @@ The storage usage card (SPEC-STO-1) uses `getQuotas` with `me.tenant.id` for ten
 
 ### 6.3 WebSocket events (`/api/events`)
 
-Connection: `ws(s)://<app origin>/api/events`. The browser sends the session cookie on the handshake; the server checks the session and the `Origin` header. Server → client messages are a discriminated union validated with Zod:
-
-```ts
-type ServerEvent =
-  | { type: 'task.updated';   task: Task }
-  | { type: 'vm.updated';     vm: Pick<Vm, 'id' | 'status' | 'ip' | 'activeTaskId'> }
-  | { type: 'tenant.updated'; tenant: Pick<Tenant, 'id' | 'status'> }
-  | { type: 'quota.updated';  tenantId: string; quotas: TenantQuotas }   // updateQuotas, bucket create/delete, plan change, every 60 s while usage changes
-  | { type: 'bucket.updated'; tenantId: string; bucket: Bucket | null; name: string } // create, delete (null), size change
-  | { type: 'heartbeat';      ts: string };
-```
-
-Rules:
-- **WS-1** Client reconnects with exponential backoff (1s, 2s, 4s … max 30s) plus jitter.
-- **WS-2** After reconnect, client refetches active queries (resync), because events may have been missed.
-- **WS-3** Events update the TanStack Query cache directly (`setQueryData`); updates arriving faster than once per animation frame are batched. Who writes which cache, and how events reach remotes, is defined in §2.5 (RT-1…9).
-- **WS-4** Connection state is visible in the shell header (connected / reconnecting / offline), in an element with `role="status"` and name "Connection".
-- **WS-5** Close codes (also in the contract's `x-close-codes`):
-
-  | Code | Meaning | Client |
-  |---|---|---|
-  | 4401 | session missing, expired or signed out | don't reconnect → `session:expired` → `/login?reason=expired` |
-  | 4403 | `Origin` rejected | don't reconnect → state `offline` → log error |
-  | 4429 | too many connections | reconnect with backoff, minimum 30 s |
-  | 1000 / 1001 | normal close / server going away | reconnect with backoff (WS-1) |
-  | 1006 | network failure **or** HTTP 401 at the handshake (browsers can't tell them apart) | call `GET /api/me`: 401 → as 4401; otherwise reconnect with backoff |
-
-  The server checks the session at upgrade and on every heartbeat tick (15 s). On expiry or sign-out it closes **all** of that session's sockets with 4401. A session may hold at most **5** WebSocket connections; the 6th is closed with 4429.
-- **WS-6** With no message (including heartbeats) for 45 s, the client closes the socket and reconnects.
-- **WS-7** Connection states: `connecting` → `connected`; on loss → `reconnecting`. It becomes `offline` after 5 consecutive failed attempts, when `navigator.onLine` is false, or on close 4403. While offline the client keeps retrying every 30 s (except after 4403). An `online` browser event triggers an immediate retry.
+Moved to [`specs/shared/realtime.md`](specs/shared/realtime.md): the `ServerEvent` union and WS-1…WS-7.
 
 ### 6.4 Mock API behaviour (`apps/mock-api`)
 
@@ -708,453 +398,47 @@ Full details (demo users, plans, seed distributions, task timings, env vars, err
 
 ## 7. Feature specs
 
-Each spec below becomes its own file in `specs/features/` (split under TECH-1; after that this section is an index, §3.1). Format: **Context → Behaviour → States → Permissions → API → Acceptance criteria → Tests**.
+Feature specs live in `specs/features/`, one file each (SPEC.md §3.1). Shared blocks and all MF, RT, WS, RBAC and MSG rule IDs live in `specs/shared/`. Feature specs link to shared files and never copy from them.
 
 ACs that show text quote the message key and the expected English text (MSG-4). Keys and texts are listed in `specs/mock-data.md` §9 (error codes) and §10 (other UI messages).
 
-#### Drawer URLs (SPEC-TEN-3, SPEC-CMP-5, SPEC-CMP-4, SPEC-STO-3)
+### Feature specs
 
-- **Tenant drawer:** `/tenants/:tenantId?tab=…`. The path segment says which tenant; `tenantId` is never a query parameter on `/tenants`. `tab` is `overview`, `quotas` or `activity`; the default is `overview`, and the parameter is left out of the URL when it's the default. List filters stay in the URL while the drawer is open (e.g. `/tenants/t_acme?status=active&sort=-createdAt&tab=quotas`), so closing the drawer returns to the same filtered list.
-- **VM drawer:** `/compute/:vmId`, with no `tab` (it has sections, not tabs).
-- **`tenantId`** exists only on `/compute` and `/storage`, for admins (SPEC-CMP-4, SPEC-STO-3):
-  - for tenant roles it's ignored and removed from the URL;
-  - if an admin opens `/compute/vm_01` without it, compute loads the VM, then adds `?tenantId=` from `vm.tenantId`, so the list behind the drawer matches;
-  - if it doesn't match the ID format (contract `ResourceId`), it's treated as missing and the picker is shown.
-- Unknown parameters are kept, but have no effect.
+| Spec | Title | Area | Day | Scope |
+|---|---|---|---|---|
+| [SPEC-SHL-1](specs/features/SPEC-SHL-1-sign-in-and-session.md) | Sign in and session | shell | 3 | MVP |
+| [SPEC-SHL-2](specs/features/SPEC-SHL-2-navigation-and-layout.md) | Navigation and layout | shell | 3 | MVP |
+| [SPEC-SHL-3](specs/features/SPEC-SHL-3-permission-handling.md) | Permission handling | shell | 3 | MVP |
+| [SPEC-SHL-4](specs/features/SPEC-SHL-4-remote-isolation.md) | Remote isolation | shell | 7 | MVP |
+| [SPEC-TEN-1](specs/features/SPEC-TEN-1-tenant-list.md) | Tenant list | tenants | 5 | MVP |
+| [SPEC-TEN-2](specs/features/SPEC-TEN-2-create-tenant-wizard.md) | Create tenant wizard | tenants | 7 | MVP |
+| [SPEC-TEN-3](specs/features/SPEC-TEN-3-tenant-detail-drawer.md) | Tenant detail drawer | tenants | 5 | MVP |
+| [SPEC-TEN-4](specs/features/SPEC-TEN-4-suspend-resume-tenant.md) | Suspend / resume tenant | tenants | 7 | MVP |
+| [SPEC-CMP-1](specs/features/SPEC-CMP-1-vm-list-with-realtime-status.md) | VM list with realtime status (Vue remote) | compute | 6 | MVP |
+| [SPEC-CMP-2](specs/features/SPEC-CMP-2-vm-actions-as-long-running-tasks.md) | VM actions as long-running tasks | compute | 6 | MVP |
+| [SPEC-CMP-4](specs/features/SPEC-CMP-4-compute-for-provider-and-reseller-admins.md) | Compute for provider and reseller admins | compute | 8 | MVP |
+| [SPEC-CMP-5](specs/features/SPEC-CMP-5-vm-detail.md) | VM detail (Vue remote) | compute | 6 | MVP |
+| [SPEC-TSK-1](specs/features/SPEC-TSK-1-task-center.md) | Task center | tasks | 4 | MVP |
+| [SPEC-STO-1](specs/features/SPEC-STO-1-bucket-list-and-usage.md) | Bucket list and usage | storage | 8 | MVP |
+| [SPEC-STO-2](specs/features/SPEC-STO-2-create-and-delete-bucket.md) | Create and delete bucket | storage | 8 | MVP |
+| [SPEC-STO-3](specs/features/SPEC-STO-3-storage-for-provider-and-reseller-admins.md) | Storage for provider and reseller admins | storage | 8 | MVP |
+| [SPEC-SHL-5](specs/features/SPEC-SHL-5-real-user-monitoring.md) | Real-user monitoring | shell | 9 | MVP |
+| [SPEC-SHL-6](specs/features/SPEC-SHL-6-realtime-connection-and-eventbus.md) | Realtime connection and EventBus | shell | 4 | MVP |
+| [SPEC-SHL-7](specs/features/SPEC-SHL-7-multi-tab-session.md) | Multi-tab session | shell | 8 | MVP |
+| [SPEC-SHL-8](specs/features/SPEC-SHL-8-tenant-context.md) | Tenant context | shell | 6 | MVP |
+| [SPEC-SHL-9](specs/features/SPEC-SHL-9-messages.md) | Messages | shell | 3 | MVP |
+| [SPEC-PLN-1](specs/features/SPEC-PLN-1-plans-list.md) | Plans list | plans | stretch | Stretch |
+| [SPEC-CMP-3](specs/features/SPEC-CMP-3-create-vm-wizard.md) | Create VM wizard | compute | stretch | Stretch |
 
-| Action | History |
+### Shared spec blocks
+
+| File | Contents |
 |---|---|
-| Open drawer | push (Back closes it) |
-| Switch tab | replace (Back doesn't step through tabs) |
-| Close with ✕ | push the list URL without `tab` |
-| URL corrections (invalid `tab`, adding or removing `tenantId`) | replace |
-
----
-
-### SPEC-SHL-1 — Sign in and session [MVP]
-**Implements:** US-1.1
-
-**Behaviour**
-- Demo login page with a role picker (4 roles) and a *Sign in* button.
-- The session is the `nimbus_session` cookie (`HttpOnly; Secure; SameSite=Strict; Path=/api`) set by `login` (NFR-SEC-3, NFR-SEC-6, ADR-0005). JavaScript never reads it; the shell keeps only the `Me` returned by `login` / `getMe` in memory. Expiry is detected only by a 401 or WebSocket close 4401 (WS-5); the client never tracks an expiry time.
-- **Home area** = the first permitted area in this order: Tenants → Compute → Storage. With the §5.2 matrix, provider and reseller admins get `/tenants`; tenant roles get `/compute`. `/` always redirects to the home area.
-- **Boot:** on every page load the shell calls `getMe` before rendering any route. While it's pending, it shows a full-page loader (no protected content, AC-SHL-3.3). `200` → render the requested URL. `401` → go to `/login?returnTo=<requested path + query>`.
-- **Sign in:** `login` returns `Me`. The shell drops `reason` and `returnTo` from the URL and navigates to `returnTo` if it's valid, otherwise to the home area. Validation: `const u = new URL(returnTo, location.origin)`; valid only if `u.origin === location.origin`, then navigate to `u.pathname + u.search + u.hash`. Permission for the target route is checked after navigation as usual (RBAC-5), so a deep link the user can't access shows the 403 page.
-- **Session expired:** any 401 (shell, or `session:expired` from a remote) or WebSocket close 4401 sends the user to `/login?reason=expired&returnTo=<current path>`. The login page shows `errors.UNAUTHENTICATED` whenever `reason=expired` is present, so the message survives a reload of `/login`. Other tabs follow (SPEC-SHL-7).
-- *Sign out* calls `logout` and then, whatever it returns (204, 401 or a network error), clears the in-memory session and the shell's query client, unmounts remotes (their clients go with them), closes the WebSocket, starts a new root bus (RT-10), tells other tabs (SPEC-SHL-7) and returns to `/login` (no `returnTo`).
-
-**Acceptance criteria**
-- **AC-SHL-1.1** `planned` Given a `tenant_viewer`, when they sign in, then they land on `/compute`.
-- **AC-SHL-1.2** `planned` Given a `provider_admin`, when they sign in, then they land on `/tenants`.
-- **AC-SHL-1.3** `planned` Given any signed-in user, when they sign out, then they land on `/login`, browser *Back* stays on `/login`, and after signing in as `tenant_viewer` no tenant rows from the previous session are shown. (Unit test: sign-out clears the shell's query client; remote clients go away with unmount.)
-- **AC-SHL-1.4** `planned` Given the session expires (API returns 401; e2e uses `POST /api/__test/expire-session`), then the user is redirected to `/login?reason=expired&returnTo=<current path>` and sees `errors.UNAUTHENTICATED` "Your session expired. Please sign in again."
-- **AC-SHL-1.5** `planned` Given a signed-in `tenant_admin` or `tenant_viewer`, when they open `/`, then they are redirected to `/compute`.
-- **AC-SHL-1.6** `planned` Given a signed-in `provider_admin` on `/tenants/t_acme?status=active`, or a signed-in `tenant_admin` on `/compute`, when they reload the page, then they stay signed in on the same URL, with no visit to `/login`.
-- **AC-SHL-1.7** `planned` Given a signed-out user, when they open `/tenants/t_acme?status=active` and sign in as `provider_admin`, then they land on `/tenants/t_acme?status=active`.
-- **AC-SHL-1.8** `planned` Given `/login?returnTo=<input>`, when the user signs in as `provider_admin`, then: `/tenants?status=active` → they land on it; `//evil.example`, `/\evil.example`, `https://evil.example/x` and `javascript:alert(1)` → rejected, they land on `/tenants`; `/%2F%2Fevil.example` → they stay on the app origin (that literal path).
-- **AC-SHL-1.9** `planned` After sign-in, `context.cookies()` shows `nimbus_session` with `httpOnly: true`, `secure: true`, `sameSite: 'Strict'`, `path: '/api'`, and `localStorage` / `sessionStorage` contain no value equal to the cookie's value.
-- **AC-SHL-1.10** `planned` A mutating request without `X-Nimbus-Csrf`, or with a foreign `Origin`, gets 403 `FORBIDDEN` (mock-api integration test).
-- **AC-SHL-1.12** `planned` Signing out after the session already expired still lands on `/login` with no error shown.
-- **AC-SHL-1.13** `planned` Reloading `/tenants/t_acme?tab=quotas` through the gateway (as `provider_admin`) shows the same view.
-- **AC-SHL-1.14** `planned` A request for a missing file under `/remotes/storage/` returns 404, not `index.html`.
-
----
-
-### SPEC-SHL-2 — Navigation and layout [MVP]
-**Implements:** US-1.2 · RBAC-3
-
-**Behaviour**
-- Left sidebar: Tenants, Compute, Storage, (Plans, stretch). Header: user menu, tenant context bar (SPEC-SHL-8), connection indicator (WS-4, WS-7), task center button with running-task count badge.
-- Items are hidden if the user lacks the area's `*:read` permission.
-
-**Acceptance criteria**
-- **AC-SHL-2.1** `planned` Given a `tenant_admin`, then the sidebar shows Compute and Storage, and not Tenants.
-- **AC-SHL-2.2** `planned` Given 2 running tasks, then the task center badge shows "2" and has accessible label `shell.runningTasks_other` "2 running tasks".
-- **AC-SHL-2.3** `planned` All sidebar items are reachable and operable by keyboard; the current item has `aria-current="page"`.
-
----
-
-### SPEC-SHL-3 — Permission handling [MVP]
-**Implements:** US-1.2 · RBAC-1…6
-
-**Acceptance criteria**
-- **AC-SHL-3.1** `planned` Given a user without `tenant:read`, when they open `/tenants` directly, then the `shell.noAccess.title` "403 – No access" page is shown with a link to their home area.
-- **AC-SHL-3.2** `planned` Given the UI shows an action but the API returns 403, then a toast says `errors.FORBIDDEN` "You don't have permission to do this." and no state changes.
-- **AC-SHL-3.3** `planned` `<Can>` (React) and `v-can` (Vue) render nothing when the permission is missing and do not flash content before `/me` resolves.
-
----
-
-### SPEC-SHL-4 — Remote isolation [MVP]
-**Implements:** US-10.1 · MF-4 · MF-6
-
-**Behaviour**
-- Error boundaries live inside each remote (MF-6). A fatal `remote:error` makes the shell unmount that remote, dispose its scope and show the MF-4 panel. The shell's own boundary covers load failures and a `mount()` that throws.
-- Remotes receive context changes through `update(ctx)`, including `ctx.path` (§2.4).
-- Simulating failures: e2e intercepts `**/remotes/storage/**` with `page.route` (503) and restores it with `page.unroute`; the live demo uses the gateway's `FAIL_REMOTES` / `POST /__test/fail-remotes`; each remote has a `/__crash` route, present only in `development` and `e2e` builds (§2.2), that throws during render (`specs/mock-data.md` §8).
-
-**Acceptance criteria**
-- **AC-SHL-4.1** `planned` Given the storage remote fails to load, when the user opens `/storage`, then an error panel `shell.remoteUnavailable` "Storage is temporarily unavailable." with *Retry* is shown, and the sidebar and header stay usable.
-- **AC-SHL-4.2** `planned` Given the storage remote fails, then `/tenants` and `/compute` each show their heading and at least one data row.
-- **AC-SHL-4.3** `planned` A render error in any remote (React or Vue) results in the MF-4 panel for that remote and one logger entry naming it.
-- **AC-SHL-4.4** `planned` When the remote is back (e2e: `page.unroute`) and the user clicks *Retry*, then it loads without a full page refresh.
-- **AC-SHL-4.5** `planned` After the shell calls `update` with a session that no longer has `vm:operate`, compute's action buttons disappear without a remount (component test: `mountRemote` from `libs/test-utils` mounts compute, then calls `update()` with a `SessionSnapshot` without `vm:operate`).
-- **AC-SHL-4.6** `planned` Browser back/forward between `/compute` and `/compute/vm_01` (SPEC-CMP-5) updates the compute view through `ctx.path`.
-
----
-
-### SPEC-TEN-1 — Tenant list [MVP]
-**Implements:** US-2.1, US-2.2, US-2.3 · REQ-2
-
-**Behaviour**
-- Table columns: Name, Display name, Status (badge), Plan, Storage (used / quota with bar), VM quota, Created, row actions menu.
-- Server-side search (`q`, debounced 300 ms), filters (status, plan), sort (name, created, storage used).
-- Infinite scroll using cursor pagination (`limit=100`), rows virtualised (TanStack Virtual). Header shows `tenants.list.count` "Showing {shown} of {total} tenants".
-- Filter, sort and search state live in the URL query string (shareable links, back button works).
-- Row click opens tenant detail drawer (SPEC-TEN-3).
-
-**States**
-
-| State | UI |
-|---|---|
-| Initial loading | Skeleton rows (10) |
-| Empty (no tenants) | Illustration + `tenants.empty` "No tenants yet" + *Create tenant* (if `tenant:create`) |
-| No results for filters | `tenants.noMatches` "No tenants match your filters" + *Clear filters* |
-| Error | Inline error with the mapped message for `Problem.code` (MSG-3), *Retry* |
-| Fetching next page | Spinner row at bottom |
-| Background refetch | Subtle progress bar in table header; rows remain |
-
-**Permissions:** requires `tenant:read`. *Create tenant* button requires `tenant:create`. Row menu *Suspend* requires `tenant:suspend` (disabled with tooltip otherwise, RBAC-4).
-
-**API:** `listTenants`. Reseller scoping is server-side.
-
-**Acceptance criteria**
-- **AC-TEN-1.1** `planned` Given 10,000 tenants, when the user scrolls to the bottom repeatedly, then at most 60 table row elements (`[role="row"]` in the body) exist in the DOM at any time (blocking e2e suite). Scrolling smoothness is a target, NFR-PERF-5, not an AC.
-- **AC-TEN-1.2** `planned` When the user types "acme" in search, then exactly one request is sent 300 ms after the last keystroke, and the URL contains `?q=acme`.
-- **AC-TEN-1.3** `planned` When the user clicks the *Name* header, then sort toggles asc → desc, the header has the correct `aria-sort`, and the request uses `sort=name` / `sort=-name`.
-- **AC-TEN-1.4** `planned` Given URL `/tenants?status=suspended&sort=-createdAt`, when the page loads, then filters and sort controls reflect the URL.
-- **AC-TEN-1.5** `planned` Given a `reseller_admin`, then only their tenants appear (verified in e2e against mock API scoping).
-- **AC-TEN-1.6** `planned` Given a `tenant.updated` WS event, then that row's status badge updates without refetching the list.
-- **AC-TEN-1.7** `planned` Table is keyboard navigable: Tab into the grid, arrow keys move between rows, Enter opens the detail drawer.
-
----
-
-### SPEC-TEN-2 — Create tenant wizard [MVP]
-**Implements:** US-3.1 · REQ-3
-
-**Behaviour**
-Modal wizard with 3 steps and a step indicator:
-
-1. **Details** — Name (slug rules from contract), Display name, Admin email.
-2. **Plan & quotas** — Plan (radio cards from `listPlans`, stretch: hard-coded if plans not built), Storage quota (whole GiB input, min 1, converted to bytes by `libs/format`), VM quota (1–500). Plan sets defaults; quotas cannot exceed the plan's max.
-3. **Review** — Summary of all values with *Edit* links to each step; *Create tenant*.
-
-- Validation uses generated Zod schemas, extended with UI rules (plan max).
-- *Next* validates the current step only. *Back* keeps values.
-- Closing a dirty wizard asks `tenants.discardChanges` "Discard changes?".
-- On submit: `createTenant` → `201 TenantCreated { tenant, task }` → close, publish `task:started` with `task` (§2.5), toast `tenants.toast.created` "Tenant {name} created.", new tenant appears at top of list (cache insert, no full refetch).
-- `409 TENANT_NAME_TAKEN` → go back to step 1 with field error on Name.
-- `422` → map `errors[].field` to form fields.
-
-**Permissions:** `tenant:create`.
-
-**Acceptance criteria**
-- **AC-TEN-2.1** `planned` Given an invalid name "Acme Corp", when the user clicks *Next*, then step 1 stays open and Name shows `tenants.nameInvalid` "Use lowercase letters, numbers and hyphens."
-- **AC-TEN-2.2** `planned` Given plan "Starter" (max 100 GiB), when the user enters 200 GiB, then *Next* is blocked with `errors.QUOTA_EXCEEDS_PLAN.storage` "Starter allows up to 100 GiB."
-- **AC-TEN-2.3** `planned` Given valid inputs, when the user reaches Review, then all values are shown and each *Edit* link returns to the right step with values kept.
-- **AC-TEN-2.4** `planned` Given the API returns 409, then the wizard returns to step 1 and Name shows `errors.TENANT_NAME_TAKEN` "This name is already taken."
-- **AC-TEN-2.5** `planned` When the user submits twice quickly, then only one request is sent (button disabled while pending).
-- **AC-TEN-2.6** `planned` Focus moves to the step heading on each step change; Escape triggers the discard prompt if dirty; focus returns to *Create tenant* button on close.
-- **AC-TEN-2.7** `planned` The provisioning task of a new tenant appears in the task center immediately after creation.
-- **AC-TEN-2.8** `planned` Given plan "Starter" (max 10 VMs), when the user enters 20, then *Next* is blocked with `errors.QUOTA_EXCEEDS_PLAN.vms` "Starter allows up to 10 VMs."
-
----
-
-### SPEC-TEN-3 — Tenant detail drawer [MVP]
-**Implements:** US-2.1, US-9.1
-
-**Behaviour:** Side drawer with Overview (fields), Quotas (editable by `quota:update`; read-only text with tooltip `tenantStatus.suspendedTooltip` while the tenant is suspended, when *Resume* is the drawer's primary action, `tenant:suspend`), and Activity (recent tasks for this tenant, from `listTasks?resourceId=` cached in the tenants area, RT-4). URL `/tenants/:tenantId?tab=overview|quotas|activity` so it's linkable (§7 *Drawer URLs*). The drawer has *View VMs* (`/compute?tenantId=<id>`) and *View buckets* (`/storage?tenantId=<id>`) links (SPEC-CMP-4, SPEC-STO-3).
-
-**Acceptance criteria**
-- **AC-TEN-3.1** `planned` Opening `/tenants/t_acme` directly shows the list with the drawer open for that tenant.
-- **AC-TEN-3.2** `planned` Given `quota:update`, when the user lowers storage quota below current usage, then save is blocked with `errors.QUOTA_BELOW_USAGE.storage` "Storage quota can't be lower than current usage ({used})." with `{used}` formatted by `formatBytes` (e.g. "(840 GiB)").
-- **AC-TEN-3.3** `planned` Given a successful quota update, then the list row's storage bar updates (optimistic update with rollback on error).
-- **AC-TEN-3.4** `planned` Given no `quota:update`, then quota fields are read-only text, not disabled inputs.
-- **AC-TEN-3.6** `planned` The drawer's Activity list shows a new suspend task and its progress live.
-- **AC-TEN-3.7** `planned` Opening `/tenants/<non-existent id>` shows the drawer's not-found state with `errors.NOT_FOUND` "This item no longer exists."
-- **AC-TEN-3.8** `planned` `updateQuotas` emits `quota.updated` with the new values (mock-api integration test).
-- **AC-TEN-3.9** `planned` A `server:quota.updated` on a fake bus updates the storage usage card with zero HTTP calls (storage component test; MSW asserts none).
-- **AC-TEN-3.10** `planned` Given a reseller_admin, after saving a quota in the tenant drawer, opening `/storage?tenantId=t_acme` shows the new quota (e2e).
-- **AC-TEN-3.11** `planned` For a suspended tenant, quota fields are read-only and *Resume* is shown.
-- **AC-TEN-3.12** `planned` Switching drawer tabs doesn't add history entries; *Back* closes the drawer.
-- **AC-TEN-3.13** `planned` `/tenants/t_acme?tab=bogus` shows Overview and the URL becomes `/tenants/t_acme`.
-
----
-
-### SPEC-TEN-4 — Suspend / resume tenant [MVP]
-**Implements:** US-4.1 · REQ-4
-
-**Behaviour**
-- Row menu and drawer show *Suspend* (`tenant:suspend`) for active tenants and *Resume* for suspended ones.
-- Suspend opens a danger dialog explaining consequences; the user must type the tenant name to enable *Suspend tenant*.
-- Calls `suspendTenant` → `202` with a task → publishes `task:started` (§2.5). The row shows status `provisioning` with spinner until `tenant.updated` arrives.
-
-**Acceptance criteria**
-- **AC-TEN-4.1** `planned` The confirm button is disabled until the typed text exactly matches the tenant name.
-- **AC-TEN-4.2** `planned` After confirming, a task appears in the task center and the row status updates when the task succeeds.
-- **AC-TEN-4.3** `planned` If the task fails (e2e: `POST /api/__test/fail-next-task { "kind": "tenant.suspend", "code": "INTERNAL" }`), the row reverts to `active` and a toast shows the mapped message for the task's `error.code` (MSG-3), e.g. `errors.INTERNAL` "Something went wrong on our side. Try again."
-- **AC-TEN-4.4** `planned` A `reseller_admin` doesn't see *Suspend* enabled: it's disabled with tooltip `rbac.disabledTooltip` + `actions.suspendTenant` "You don't have permission to suspend tenants."
-- **AC-TEN-4.5** `planned` Suspending a tenant shows its task in the task center immediately.
-
----
-
-### SPEC-CMP-1 — VM list with realtime status (Vue remote) [MVP]
-**Implements:** US-5.1 · REQ-5
-
-**Behaviour**
-- Table: Name, Status (badge with icon + text, never colour alone), vCPU, Memory, IP, Actions.
-- Data from `listVms`; live updates from `server:vm.updated` bus events (WS-3, §2.5).
-- Transitional statuses (`starting`, `stopping`, `rebooting`) show a spinner and the linked task's progress %. On mount, compute fetches `getTask` for each VM's `activeTaskId` into its own cache (RT-4).
-
-**Acceptance criteria**
-- **AC-CMP-1.1** `planned` Given a `vm.updated` event changes VM status to `stopped`, then the row updates within one animation frame of the event being processed, with no network request (unit test, `vi.useFakeTimers({ toFake: ['requestAnimationFrame'] })`).
-- **AC-CMP-1.2** `planned` Given 50 `vm.updated` events arrive within one animation frame, then they result in **one** cache write (spy on `setQueriesData`; fake `requestAnimationFrame`).
-- **AC-CMP-1.3** `planned` Given the WS connection drops and reconnects, then the VM list is refetched once (WS-2).
-- **AC-CMP-1.4** `planned` Status changes are announced politely to screen readers via an `aria-live="polite"` region (`compute.vmNowStatus` "web-01 is now stopped."), at most one announcement per second.
-- **AC-CMP-1.5** `planned` Mounting compute while a VM has an `activeTaskId` shows that task's current progress within one `getTask` call.
-
----
-
-### SPEC-CMP-2 — VM actions as long-running tasks [MVP]
-**Implements:** US-6.1 · REQ-6
-
-**Behaviour**
-- Actions per status: `stopped` → Start; `running` → Stop, Reboot; transitional → all disabled.
-- *Stop* asks for confirmation. Start and Reboot do not (except for a provider admin acting on another tenant, SPEC-CMP-4).
-- Action → `runVmAction` → `202 Task` → publish `task:started` → button area shows progress until task ends → toast on success/failure.
-- `409 VM_BUSY` → toast `errors.VM_BUSY` "web-01 is busy with another operation."
-
-**Permissions:** `vm:operate`. Without it, action buttons are hidden (toolbar context, RBAC-4).
-
-**Acceptance criteria**
-- **AC-CMP-2.1** `planned` Given a running VM, when the user clicks *Reboot*, then the status becomes `rebooting` immediately (optimistic) and progress % updates from task events.
-- **AC-CMP-2.2** `planned` Given the task fails, then status reverts to the server's latest value and a toast shows the error.
-- **AC-CMP-2.3** `planned` Given `tenant_viewer`, then no action buttons are rendered.
-- **AC-CMP-2.4** `planned` While a VM has an active task, all its actions are disabled with tooltip `compute.operationInProgress` "Operation in progress".
-
----
-
-### SPEC-CMP-4 — Compute for provider and reseller admins [MVP]
-**Implements:** REQ-5, REQ-6 · §5.2
-
-**Behaviour**
-- For users with `me.tenant === null`, Compute shows a searchable tenant combobox (`listTenants`, server-scoped). The selection is in the URL (`?tenantId=t_acme`; rules in §7 *Drawer URLs*).
-- Before a choice: empty state `compute.chooseTenant` "Choose a tenant to see its virtual machines."
-- Actions follow the RBAC matrix unchanged: a provider_admin may operate VMs; a context line `compute.actingOnTenant` "Acting on tenant {displayName}" is shown, and **every** VM action asks for confirmation naming the tenant. A reseller_admin is read-only.
-- Server scoping: a `tenantId` outside the caller's scope returns 404 `NOT_FOUND`; provider/reseller calls without `tenantId` return 422 `VALIDATION_FAILED`.
-- **Suspended tenant picked:** a suspended tenant's resources are read-only for **everyone**, including provider_admin; to make changes, an admin resumes the tenant first. The server returns 409 `TENANT_SUSPENDED` for VM actions, bucket changes and quota updates on a suspended tenant, whoever calls. Compute (and Storage, SPEC-STO-3) shows an in-area banner above the table (not the global tenant-role banner of SPEC-SHL-8), `role="status"`: `tenantStatus.suspendedAdminBanner` "{tenant} is suspended. Resume it to make changes.", plus an *Open tenant* link to `/tenants/{id}` when `canOpen` allows it (`tenant:read`). All mutating actions for that tenant are disabled with tooltip `tenantStatus.suspendedTooltip` "Changes are disabled while this tenant is suspended." Tenant status comes from the area's own cached `listTenants` / `getTenant` data, updated by `server:tenant.updated` (RT-12), so the banner appears or disappears without a reload.
-
-**Acceptance criteria**
-- **AC-CMP-4.1** `planned` A provider_admin on `/compute` sees the picker and the empty state. Picking "acme" lists 40 VMs and sets `?tenantId=t_acme`.
-- **AC-CMP-4.2** `planned` A reseller_admin sees their tenants' VMs without action buttons. A foreign `tenantId` shows `errors.NOT_FOUND` "This item no longer exists."
-- **AC-CMP-4.3** `planned` A provider_admin's *Stop* on a tenant's VM asks for confirmation naming the tenant.
-- **AC-CMP-4.4** `planned` A provider_admin with a suspended tenant picked sees the `tenantStatus.suspendedAdminBanner` banner, and every VM action is disabled with tooltip `tenantStatus.suspendedTooltip` "Changes are disabled while this tenant is suspended."
-- **AC-CMP-4.5** `planned` When that tenant is resumed in another tab, the banner disappears and actions are enabled without a reload.
-- **AC-CMP-4.6** `planned` `runVmAction` as provider_admin on a suspended tenant returns 409 `TENANT_SUSPENDED` (mock-api integration test).
-- **AC-CMP-4.7** `planned` A tenant_admin opening `/compute?tenantId=t_other` sees their own VMs, and `tenantId` is removed from the URL.
-
----
-
-### SPEC-CMP-5 — VM detail (Vue remote) [MVP]
-**Implements:** US-5.1, US-6.1 · REQ-5
-
-**Behaviour**
-- Route `/compute/:vmId` (plus `?tenantId=` for provider/reseller admins, SPEC-CMP-4). A drawer over the VM list. URL and history rules: §7 *Drawer URLs*.
-- Overview: name, status, vCPU, memory, disk, IP, image, created.
-- Current task with progress (from compute's own cache, RT-4).
-- Recent tasks: `listTasks?resourceId=` in compute's own cache.
-
-**States:** loading, not found (`errors.NOT_FOUND` "This item no longer exists."), error.
-
-**Acceptance criteria**
-- **AC-CMP-5.1** `planned` `/compute/vm_01` opens the drawer for web-01, including after a reload.
-- **AC-CMP-5.2** `planned` A non-existent VM ID shows `errors.NOT_FOUND` "This item no longer exists."
-- **AC-CMP-5.3** `planned` A running task's progress updates live in the drawer.
-- **AC-CMP-5.4** `planned` A provider_admin opening `/compute/vm_01` without `tenantId` ends on `/compute/vm_01?tenantId=t_acme` with the list for `acme` behind the drawer.
-
----
-
-### SPEC-TSK-1 — Task center [MVP]
-**Implements:** US-7.1 · REQ-7
-
-**Behaviour**
-- Header button opens a panel listing tasks: running first (with progress bar), then recent (last 24 h), each with resource name, kind, status, time.
-- Live updates from `server:task.updated`. Every task upsert, from any source (`listTasks`, `task:started`, `server:task.updated`), goes through `mergeTask` (§2.5).
-- Owned by the shell; areas publish `task:started` after every task-producing 2xx response (§2.5), so a task appears instantly.
-- A task's *View resource* link is shown only if `canOpen` (`libs/auth`) returns a URL; otherwise the resource name is plain text.
-
-  ```ts
-  // libs/auth — pure function, no I/O
-  export function canOpen(
-    target: { resource: ResourceRef; tenantId: string | null },  // a Task fits as-is
-    session: SessionSnapshot,
-  ): string | null;                                              // app-relative URL, or null = render as text
-  ```
-
-  | `resource.type` | Returns | Requires |
-  |---|---|---|
-  | `tenant` | `/tenants/{id}` | `tenant:read` |
-  | `vm` | `/compute/{id}`, plus `?tenantId={target.tenantId}` when `session.tenant` is null | `vm:read` |
-  | `bucket` | `null` | — |
-
-  `canOpen` doesn't check scope (whether a reseller owns that tenant): the server only sends tasks the user may see (RT-12), and a stale link ends in the "no longer exists" state. Tenant roles have no `tenant:read`, so for them a tenant task's resource name is plain text (SPEC-SHL-8).
-- Failed tasks show the mapped message for `task.error.code` (MSG-3).
-
-**Acceptance criteria**
-- **AC-TSK-1.1** `planned` A task appears in the task center within 100 ms of the area receiving its 2xx response, whether or not a WebSocket update has already arrived (component test with fake timers).
-- **AC-TSK-1.2** `planned` Progress bars use `role="progressbar"` with `aria-valuenow`.
-- **AC-TSK-1.3** `planned` Failed tasks show the mapped message for their error code and, when `canOpen` allows, a *View resource* link.
-- **AC-TSK-1.4** `planned` A `seq: 2` update followed by `task:started` (`seq: 0`) leaves the task at its `seq: 2` state (unit test).
-- **AC-TSK-1.5** `planned` A `succeeded` task never changes back to `running`.
-- **AC-TSK-1.6** `planned` For tenant roles, the `tenant.provision` task shows "acme" as plain text, not a link.
-- **AC-TSK-1.7** `planned` *View resource* on a VM task opens that VM's drawer (SPEC-CMP-5).
-
----
-
-### SPEC-STO-1 — Bucket list and usage [MVP]
-**Implements:** US-8.2 · REQ-8
-
-**Behaviour:** Usage card on top (used / quota, % bar, warning at ≥ 80%, danger at ≥ 95%; thresholds use the exact ratio, the displayed percent is floored, §9). Table: Name, Size, Objects, Versioning, Created, actions (Delete). Usage card and list update from `server:quota.updated` and `server:bucket.updated` (RT-4).
-
-**Acceptance criteria**
-- **AC-STO-1.1** `planned` Usage at 85% shows a warning style and text `storage.usagePercent` "85% of quota used" (not colour alone).
-- **AC-STO-1.2** `planned` Sizes are formatted with `formatBytes` from `libs/format` (§9): binary units, one decimal place, trailing `.0` dropped, e.g. "100 GiB", "1.5 GiB", "0 B".
-- **AC-STO-1.3** `planned` Empty state offers *Create bucket* only with `bucket:create`.
-- **AC-STO-1.4** `planned` Creating or deleting a bucket updates the usage card and the bucket list from events.
-
----
-
-### SPEC-STO-2 — Create and delete bucket [MVP]
-**Implements:** US-8.1
-
-**Behaviour**
-- Create dialog: Name (S3 naming rules: 3–63 chars, lowercase, digits, dots, hyphens; no `..`; not IP-formatted), Versioning toggle.
-- Delete requires typing the bucket name; only empty buckets can be deleted (`409 BUCKET_NOT_EMPTY` otherwise).
-
-**Acceptance criteria**
-- **AC-STO-2.1** `planned` Name "My_Bucket" shows the field error `storage.bucketNameInvalid` "Use 3–63 lowercase letters, numbers, dots and hyphens." before submit.
-- **AC-STO-2.2** `planned` Name "192.168.1.1" is rejected with `storage.bucketNameIp` "Bucket names can't look like IP addresses."
-- **AC-STO-2.3** `planned` Creating a bucket when quota is fully used (e2e: `POST /api/__test/set-usage`) shows `errors.QUOTA_EXCEEDED` "Storage quota is full. Free up space or ask an admin to raise the quota." in the dialog.
-- **AC-STO-2.4** `planned` Deleting a non-empty bucket shows `errors.BUCKET_NOT_EMPTY` "Empty the bucket before deleting it."
-
----
-
-### SPEC-STO-3 — Storage for provider and reseller admins [MVP]
-**Implements:** REQ-8 · §5.2
-
-**Behaviour**
-- For users with `me.tenant === null`, Storage shows the same tenant combobox as SPEC-CMP-4, with the selection in `?tenantId=` (rules in §7 *Drawer URLs*).
-- Before a choice: empty state `storage.chooseTenant` "Choose a tenant to see its buckets."
-- The usage card uses `getQuotas(tenantId)` for the picked tenant. Bucket create/delete stays tenant_admin only (§5.2).
-- Same server scoping as SPEC-CMP-4 (404 outside scope, 422 without `tenantId`), and the same suspended-tenant banner and disabled actions (SPEC-CMP-4).
-
-**Acceptance criteria**
-- **AC-STO-3.1** `planned` A provider_admin picking a tenant in Storage sees its buckets and usage card, without create/delete actions.
-- **AC-STO-3.2** `planned` A reseller_admin picking one of their tenants sees its buckets and usage card, read-only.
-- **AC-STO-3.3** `planned` A foreign `tenantId` in `/storage?tenantId=` shows `errors.NOT_FOUND` "This item no longer exists."
-
----
-
-### SPEC-SHL-5 — Real-user monitoring [MVP]
-**Implements:** US-11.1 · REQ-11
-
-**Behaviour:** Shell registers `onLCP`, `onINP`, `onCLS` from `web-vitals` and posts them (batched, `navigator.sendBeacon`) to `/api/rum` with route and remote name. A small internal page `/_vitals` shows p75 per route.
-
-**Acceptance criteria**
-- **AC-SHL-5.1** `planned` Each metric is sent at most once per page load, flushed on `visibilitychange: hidden` or `pagehide`. (E2E triggers the flush with `page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))` after stubbing `document.visibilityState`.)
-- **AC-SHL-5.2** `planned` Each record includes `metric`, `value`, `rating`, `route`, `remote`, `navigationType`.
-- **AC-SHL-5.3** `planned` `/_vitals` shows p75 values over the last 24 h of records, rated good / needs-improvement / poor with web-vitals' standard thresholds (tested with records seeded via `reportVitals`).
-
----
-
-### SPEC-SHL-6 — Realtime connection and EventBus [MVP]
-**Implements:** US-5.1, US-7.1 · WS-1…7 · RT-1…12 (§2.5)
-
-**Behaviour:** The shell's `libs/realtime` owns the only WebSocket, validates every message and republishes it on the root bus; each remote gets its own scope (§2.5). Close codes, heartbeat timeout and connection states follow WS-5…WS-7.
-
-**Acceptance criteria**
-- **AC-SHL-6.1** `planned` Given a `provider_admin` who visits `/tenants`, `/compute` and `/storage` in one session, then exactly one WebSocket connection has been opened and one is open (e2e: count `page.on('websocket')` in Playwright).
-- **AC-SHL-6.2** `planned` An invalid message isn't published and creates exactly one `realtime.invalid_message` logger entry.
-- **AC-SHL-6.3** `planned` `subscriberCount('compute')` is 0 after compute unmounts.
-- **AC-SHL-6.4** `planned` (a) A subscriber added while the state is `reconnecting` receives `{ state: 'reconnecting' }` synchronously on subscribe (unit test). (b) The header element with `role="status"` and name `connections.label` "Connection" shows `connections.reconnecting` "Reconnecting…" (e2e; the server drops the caller's sockets via `POST /api/__test/drop-sockets`).
-- **AC-SHL-6.5** `planned` An exception in one subscriber doesn't stop other subscribers receiving the same event, and the logger entry names the failing subscriber's scope.
-- **AC-SHL-6.6** `planned` On close 4401, the client doesn't reconnect and the user lands on `/login?reason=expired` with `errors.UNAUTHENTICATED` "Your session expired. Please sign in again."
-- **AC-SHL-6.7** `planned` On close 1006, the client calls `/api/me`: 401 → as AC-SHL-6.6; 200 → reconnect with backoff.
-- **AC-SHL-6.8** `planned` With no message for 45 s, the client closes the socket and reconnects (unit test, fake timers).
-- **AC-SHL-6.9** `planned` After 5 failed attempts the header indicator shows `connections.offline` "Offline"; it shows `connections.connected` "Connected" again after a successful retry (unit test: a fake `WebSocket` that always fails, plus fake timers; e2e covers only `reconnecting`, AC-SHL-6.4).
-- **AC-SHL-6.10** `planned` Reloading `/login?reason=expired` still shows the expiry message.
-- **AC-SHL-6.11** `planned` A remote publishing `server:vm.updated` throws in tests and is dropped and logged in production builds.
-- **AC-SHL-6.12** `planned` After sign-out and sign-in, no subscription from the previous session receives events.
-- **AC-SHL-6.13** `planned` The first successful connection doesn't publish `realtime:reconnected`; a reconnection after a drop does, exactly once.
-- **AC-SHL-6.14** `planned` A tenant_admin's socket receives no events about other tenants (mock-api integration test).
-- **AC-SHL-6.15** `planned` A tenant_viewer's socket receives `tenant.updated` for `t_acme` and nothing for other tenants (mock-api integration test).
-
----
-
-### SPEC-SHL-7 — Multi-tab session [MVP]
-**Implements:** US-1.1 · NFR-SEC-3
-
-**Behaviour:** The shell keeps tabs in sync over `BroadcastChannel('nimbus:session')`. Messages carry no secrets. Each tab keeps its own WebSocket (RT-1 is per tab).
-
-| Message | Sent when | Every other tab |
-|---|---|---|
-| `{ type: 'signed-out' }` | *Sign out* clicked | unmount remotes, reset bus (RT-10), clear shell cache, go to `/login` |
-| `{ type: 'expired' }` | this tab saw a 401 or close 4401 | same, with `/login?reason=expired` |
-| `{ type: 'signed-in', userId }` | sign-in succeeded | different `userId` → full page reload; same user → refetch `/me` and call `update(ctx)` on mounted remotes |
-
-- A tab on `/login` that receives `signed-in` refetches `/me` and navigates to its validated `returnTo` or the home area.
-- On `signed-out` or `expired`, unsaved input (open wizard, dialogs) is **discarded without a prompt**. Security wins over convenience, and the user sees why via `/login?reason=…`.
-
-E2E uses two pages in one Playwright browser context (shared cookies).
-
-**Acceptance criteria**
-- **AC-SHL-7.1** `planned` Signing out in tab A sends tab B to `/login` within 1 s, without user action.
-- **AC-SHL-7.2** `planned` Signing in as a different role in tab A makes tab B reload and show that role's areas and actions.
-- **AC-SHL-7.3** `planned` An expiry seen in tab A shows `errors.UNAUTHENTICATED` "Your session expired. Please sign in again." in tab B.
-- **AC-SHL-7.4** `planned` A tab on `/login` follows a sign-in in another tab.
-
----
-
-### SPEC-SHL-8 — Tenant context [MVP]
-**Implements:** US-1.2 · §1.3 (tenant_viewer persona)
-
-**Behaviour**
-- Tenant roles have no `tenant:read` (§5.2). Instead `Me.tenant` carries a read-only `TenantSummary` (`id`, `displayName`, `planName`, `status`).
-- A tenant context bar in the shell header for users with `me.tenant`: `shell.tenantContext` "{displayName} · {planName} · {status}", the status shown as a badge.
-- `server:tenant.updated` for the user's own tenant patches `me.tenant.status` in the shell cache.
-- Suspended tenant: a global banner `tenantStatus.suspendedBanner` "This tenant is suspended. You can view resources but can't change them." All mutating actions are disabled with that text as tooltip. The server enforces it too: changes to the tenant's VMs, buckets and quotas return 409 `TENANT_SUSPENDED` (`errors.TENANT_SUSPENDED` "This tenant is suspended, so changes are disabled.").
-- Tenant roles don't see the reseller, plan limits beyond their own quotas, pricing, or other tenants.
-
-**Acceptance criteria**
-- **AC-SHL-8.1** `planned` A tenant_viewer sees "Acme Corporation · Business · Active" in the header.
-- **AC-SHL-8.2** `planned` When their tenant becomes suspended (`tenant.updated`), the banner appears and VM and bucket actions are disabled without a reload.
-
----
-
-### SPEC-SHL-9 — Messages [MVP]
-**Implements:** MSG-1…4 (§9 Messages & formatting)
-
-**Acceptance criteria**
-- **AC-SHL-9.1** `planned` Every `ErrorCode` has a message (unit test over the enum).
-- **AC-SHL-9.2** `planned` An unknown code shows `errors.INTERNAL` "Something went wrong on our side. Try again."
-- **AC-SHL-9.3** `planned` `QUOTA_EXCEEDS_PLAN` with `{ resource: "storage", plan: "Starter", max: 107374182400 }` shows `errors.QUOTA_EXCEEDS_PLAN.storage` "Starter allows up to 100 GiB."
-
----
-
-### SPEC-PLN-1 — Plans list [Stretch]
-Read-only cards of plans with price per GiB and per vCPU (`Money`, formatted per §9). Requires `plan:read`.
-
-### SPEC-CMP-3 — Create VM wizard [Stretch]
-Steps: Image → Size → Network → Review. Validates against tenant VM quota; returns a `vm.create` task.
+| [mf-contract](specs/shared/mf-contract.md) | MF-1…MF-6, `RemoteContext`, `SessionSnapshot` |
+| [realtime](specs/shared/realtime.md) | RT-1…RT-12, WS-1…WS-7, EventBus catalogue, `mergeTask` |
+| [rbac](specs/shared/rbac.md) | Permission strings, matrix, RBAC-1…RBAC-6 |
+| [url-conventions](specs/shared/url-conventions.md) | Drawer URLs, `tenantId`, history rules |
+| [messages-and-format](specs/shared/messages-and-format.md) | MSG-1…MSG-4, `libs/format` functions |
 
 ---
 
@@ -1244,39 +528,8 @@ Every component has stories for: default, loading, empty, error, disabled, long 
 - Production builds keep `error` and `warn`, and drop `info`.
 
 ### Messages & formatting
-- **MSG-1** Every user-facing string lives in a typed catalogue: shared strings in `libs/messages/src/en.ts` (errors, common actions, statuses, connection states), area strings in `apps/<area>/src/messages/en.ts`. A missing key is a type error.
-- **MSG-2** Placeholders use `{name}` and are always inserted as text, never HTML. Plurals use `…_one` / `…_other` keys chosen with `Intl.PluralRules('en')`.
-- **MSG-3** Server text is never shown. The UI shows the message for `Problem.code`, filled from `Problem.params`. Unknown codes show the `INTERNAL` message. `title` / `detail` go to the logger only (lint: `nimbus/no-server-text`).
-- **MSG-4** Single source of wording: `specs/mock-data.md` §9 for error texts and §10 for other UI strings referenced by ACs. ACs quote the message key plus the expected text. A unit test checks that every `ErrorCode` has a message.
 
-Formatting lives in `libs/format`: framework-agnostic, pure, shared by React and Vue, every function unit-tested with the examples below. Locale handling is internal (the table). ACs and messages reference these names (e.g. "`{max}` formatted with `formatBytes`").
-
-```ts
-formatBytes(bytes: number): string                      // 107374182400 → "100 GiB", 1610612736 → "1.5 GiB", 0 → "0 B"
-gibToBytes(gib: number): number                         // 100 → 107374182400 (quota inputs)
-bytesToGib(bytes: number): number                       // 107374182400 → 100 (prefilling inputs)
-formatPercent(ratio: number): string                    // 0.799 → "79%", 1.04 → "104%"
-usageLevel(ratio: number): 'ok' | 'warning' | 'danger'  // < 0.8 ok, < 0.95 warning, else danger (exact ratio)
-formatCount(n: number): string                          // 10000 → "10,000"
-formatDateTime(iso: string): string                     // → "30 Oct 2026, 22:01" (browser time zone)
-formatRelativeTime(iso: string, now?: Date): string     // → "2 minutes ago" (< 24 h; older → formatDateTime)
-formatMoney(money: Money): string                       // { amountMicros: 35000, currency: 'EUR' } → "€0.035"
-```
-
-Rules behind them:
-
-| What | Rule | Example |
-|---|---|---|
-| Bytes | binary units; trailing `.0` dropped; one decimal otherwise; none for B | `100 GiB`, `1.5 GiB`, `0 B` |
-| Quota input | whole GiB, converted to bytes | `100` → `107374182400` |
-| Percent | display `Math.floor`; thresholds use the exact ratio | 79.9% → "79%", no warning |
-| Over quota | real value, danger style | `104%` |
-| Date/time | `Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' })`, browser time zone; tooltip shows ISO UTC | `30 Oct 2026, 22:01` |
-| Recent (< 24 h) | `Intl.RelativeTimeFormat('en', { numeric: 'auto' })` | `2 minutes ago` |
-| Counts | `Intl.NumberFormat('en-GB')` | `10,000` |
-| Money | `Intl.NumberFormat('en-GB', { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 4 })` on `amountMicros / 1e6` | `€0.035` |
-
----
+Moved to [`specs/shared/messages-and-format.md`](specs/shared/messages-and-format.md): MSG-1…MSG-4 and the `libs/format` functions.
 
 ## 10. Testing strategy
 
