@@ -42,5 +42,5 @@ export default defineConfig(({ mode }) => ({
       dts: false,
     }),
   ],
-  test: { include: ['src/**/*.test.ts'], environment: 'node', passWithNoTests: true },
+  test: { include: ['src/**/*.test.ts', 'src/**/*.test.tsx'], environment: 'node' }, // component tests opt into jsdom per file
 }));

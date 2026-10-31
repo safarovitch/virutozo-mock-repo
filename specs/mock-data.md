@@ -212,6 +212,7 @@ Shared keys live in `libs/messages`; area keys in `apps/<area>/src/messages/en.t
 | `shell.noAccess.goHome` | Go to {area} | AC-SHL-3.1 | `draft` |
 | `shell.notFound` | Page not found | SPEC-SHL-2 | `draft` |
 | `shell.userMenu` | Account | D3-01 | `draft` |
+| `shell.configError` | Nimbus Console couldn't load its configuration. | SPEC.md §2.2 (bad manifest) | `draft` |
 | `shell.remoteUnavailable` | {area} is temporarily unavailable. | AC-SHL-4.1 | `draft` |
 | `shell.runningTasks_one` / `_other` | {count} running task / {count} running tasks | AC-SHL-2.2 | `draft` |
 | `shell.tenantContext` | {displayName} · {planName} · {status} | AC-SHL-8.1 | `draft` |

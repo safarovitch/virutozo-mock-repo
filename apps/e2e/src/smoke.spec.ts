@@ -1,10 +1,16 @@
 import { expect, test } from '@playwright/test';
+import { signIn } from './support';
 
 const AREAS = [
   { name: 'tenants', title: 'Tenants' },
   { name: 'storage', title: 'Storage' },
   { name: 'compute', title: 'Compute' },
 ] as const;
+
+// Since SPEC-SHL-1 (Day 3) the areas need a session; provider_admin may open all three.
+test.beforeEach(async ({ page }) => {
+  await signIn(page, 'provider_admin');
+});
 
 test('TECH-1: shell loads and shows navigation', async ({ page }) => {
   await page.goto('/');
@@ -36,7 +42,8 @@ test('TECH-1: a failing remote shows the error panel and the rest of the shell s
   await page.route('**/remotes/storage/**', (route) => route.fulfill({ status: 503, body: 'down' }));
 
   await page.goto('/storage');
-  const panel = page.getByRole('alert');
+  // Filtered by text: the toast region keeps its own (empty) role="alert" live region on the page.
+  const panel = page.getByRole('alert').filter({ hasText: 'Storage is temporarily unavailable.' });
   await expect(panel.getByRole('heading', { name: 'Storage is temporarily unavailable.' })).toBeVisible();
   await expect(panel.getByRole('button', { name: 'Retry' })).toBeVisible();
 

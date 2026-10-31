@@ -12,4 +12,6 @@
 - No `waitForTimeout`, no CSS-class selectors; use roles and web-first assertions (H10).
 - `retries: 0` stays (ADR-0007); a flaky test gets a `BUG-*`, not a retry.
 - Simulate remote failures with `page.route`, not env vars (SPEC-SHL-4).
+- Areas need a session: use `signIn(page, role)` from `src/support.ts` (through the real login page); `expectNoA11yViolations(page)` on every new page (NFR-A11Y-1).
+- `getByRole('alert')` also matches the toast region's empty live region: filter by text or scope to the page.
 - A busy `GATEWAY_PORT` makes `pnpm e2e` fail fast with `EADDRINUSE` (Apache holds 8080 on some Macs); set `GATEWAY_PORT=8090`. `baseURL` comes from `tools/gateway-port.mjs`; never hard-code the port. Use Node 22 (`nvm use`): Node 20 can't expand the `test:hooks` glob.

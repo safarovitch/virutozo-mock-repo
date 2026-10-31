@@ -1,10 +1,25 @@
 body { margin: 0; font-family: var(--font-sans); font-size: var(--font-size-md); color: var(--color-text); background: var(--color-bg); }
-.layout { display: flex; min-height: 100vh; }
-.sidebar { width: 200px; padding: var(--space-4); background: var(--color-surface); }
+.layout { display: flex; min-block-size: 100vh; }
+.sidebar { inline-size: 200px; padding: var(--space-4); background: var(--color-surface); }
 .sidebar ul { list-style: none; margin: 0; padding: 0; }
 .sidebar a { display: block; padding: var(--space-2); border-radius: var(--radius-sm); color: var(--color-text); text-decoration: none; }
 .sidebar a[aria-current='page'] { background: var(--color-bg); font-weight: 600; }
-.sidebar a:focus-visible, button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.sidebar a:focus-visible, button:focus-visible, a:focus-visible, input:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .brand { font-weight: 700; margin: 0 0 var(--space-4); }
+.main { flex: 1; display: flex; flex-direction: column; min-inline-size: 0; }
+.header { display: flex; justify-content: flex-end; align-items: center; gap: var(--space-4); padding: var(--space-2) var(--space-6); border-block-end: 1px solid var(--color-surface); }
 .content { flex: 1; padding: var(--space-6); }
 .remote-error { padding: var(--space-4); border: 1px solid var(--color-danger); border-radius: var(--radius-md); }
+.user-menu { position: relative; }
+.user-menu__panel { position: absolute; inset-inline-end: 0; inset-block-start: calc(100% + var(--space-1)); z-index: 20; min-inline-size: 220px; padding: var(--space-3); display: grid; gap: var(--space-2); background: var(--color-bg); border: 1px solid var(--color-text-muted); border-radius: var(--radius-md); }
+.user-menu__panel p { margin: 0; overflow-wrap: anywhere; }
+.user-menu__panel p:first-child { color: var(--color-text-muted); }
+.login { max-inline-size: 420px; margin: 10vh auto; padding: var(--space-6); display: grid; gap: var(--space-4); }
+.login h1 { margin: 0; font-size: 20px; }
+.login form { display: grid; gap: var(--space-4); justify-items: start; }
+.login fieldset { display: grid; gap: var(--space-2); border: 1px solid var(--color-surface); border-radius: var(--radius-md); padding: var(--space-3); margin: 0; inline-size: 100%; box-sizing: border-box; }
+.login__role { display: flex; gap: var(--space-2); align-items: center; }
+.login [role='alert'] { margin: 0; color: var(--color-danger); }
+.page { display: grid; gap: var(--space-3); }
+.page h1, .page p { margin: 0; }
+.boot { max-inline-size: 560px; margin: 10vh auto; padding: var(--space-6); }

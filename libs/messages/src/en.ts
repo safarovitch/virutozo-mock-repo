@@ -68,6 +68,7 @@ export const en = {
   'shell.notFound': 'Page not found', // draft
   'shell.userMenu': 'Account', // draft
   'shell.remoteUnavailable': '{area} is temporarily unavailable.', // draft
+  'shell.configError': "Nimbus Console couldn't load its configuration.", // draft
 
   // ── Common (ui-kit, §8.2; mock-data §10, all draft) ──
   'common.loading': 'Loading…', // draft

@@ -1,22 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import type { MountedRemote, RemoteContext, RootBus, ScopedBus } from '@nimbus/mf-contract';
+import type { MountedRemote, RemoteContext, RootBus, ScopedBus, SessionSnapshot } from '@nimbus/mf-contract';
+import { t } from '@nimbus/messages';
+import { Button, Skeleton } from '@nimbus/ui-kit';
 import type { Manifest, RemoteName } from './manifest';
 import { loadRemoteModule } from './remotes';
-import { ANONYMOUS_SESSION } from './session';
 
 interface Props {
   name: RemoteName;
   title: string;
   manifest: Manifest;
   bus: RootBus;
+  session: SessionSnapshot;
 }
 
 /**
  * Loads and mounts one remote (specs/shared/mf-contract.md). A load failure or a mount() that throws
  * shows a contained panel with Retry; the rest of the shell keeps working (MF-4, SPEC-SHL-4).
  */
-export function RemoteHost({ name, title, manifest, bus }: Props) {
+export function RemoteHost({ name, title, manifest, bus, session }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const mounted = useRef<MountedRemote | null>(null);
   const scope = useRef<ScopedBus | null>(null);
@@ -31,7 +33,7 @@ export function RemoteHost({ name, title, manifest, bus }: Props) {
   const contextFor = (p: string): RemoteContext => ({
     basePath,
     path: p,
-    session: ANONYMOUS_SESSION,
+    session,
     navigate: (to, options) => navigate(to, { replace: options?.replace ?? false }),
     events: scope.current as ScopedBus,
   });
@@ -68,13 +70,11 @@ export function RemoteHost({ name, title, manifest, bus }: Props) {
     <>
       {status === 'failed' && (
         <div role="alert" className="remote-error">
-          <h1>{title} is temporarily unavailable.</h1>
-          <button type="button" onClick={() => setAttempt((n) => n + 1)}>
-            Retry
-          </button>
+          <h1>{t('shell.remoteUnavailable', { area: title })}</h1>
+          <Button onClick={() => setAttempt((n) => n + 1)}>{t('common.retry')}</Button>
         </div>
       )}
-      {status === 'loading' && <p aria-live="polite">Loading {title}…</p>}
+      {status === 'loading' && <Skeleton label={t('common.loading')} />}
       <div ref={el} hidden={status === 'failed'} data-remote={name} />
     </>
   );
