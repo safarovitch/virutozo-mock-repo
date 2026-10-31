@@ -34,7 +34,7 @@ Shared rules: [mf-contract](../shared/mf-contract.md) · [realtime](../shared/re
 | **AC-SHL-1.7** | Given a signed-out user, when they open `/tenants/t_acme?status=active` and sign in as `provider_admin`, then they land on `/tenants/t_acme?status=active`. | `planned` |
 | **AC-SHL-1.8** | Given `/login?returnTo=<input>`, when the user signs in as `provider_admin`, then: `/tenants?status=active` → they land on it; `//evil.example`, `/\evil.example`, `https://evil.example/x` and `javascript:alert(1)` → rejected, they land on `/tenants`; `/%2F%2Fevil.example` → they stay on the app origin (that literal path). | `planned` |
 | **AC-SHL-1.9** | After sign-in, `context.cookies()` shows `nimbus_session` with `httpOnly: true`, `secure: true`, `sameSite: 'Strict'`, `path: '/api'`, and `localStorage` / `sessionStorage` contain no value equal to the cookie's value. | `planned` |
-| **AC-SHL-1.10** | A mutating request without `X-Nimbus-Csrf`, or with a foreign `Origin`, gets 403 `FORBIDDEN` (mock-api integration test). | `planned` |
+| **AC-SHL-1.10** | A mutating request without `X-Nimbus-Csrf`, or with a foreign `Origin`, gets 403 `FORBIDDEN` (mock-api integration test). | `done` |
 | **AC-SHL-1.12** | Signing out after the session already expired still lands on `/login` with no error shown. | `planned` |
 | **AC-SHL-1.13** | Reloading `/tenants/t_acme?tab=quotas` through the gateway (as `provider_admin`) shows the same view. | `planned` |
 | **AC-SHL-1.14** | A request for a missing file under `/remotes/storage/` returns 404, not `index.html`. | `done` |

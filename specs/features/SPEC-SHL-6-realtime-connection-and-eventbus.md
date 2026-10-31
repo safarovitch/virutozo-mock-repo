@@ -31,5 +31,5 @@ Shared rules: [mf-contract](../shared/mf-contract.md) · [realtime](../shared/re
 | **AC-SHL-6.11** | A remote publishing `server:vm.updated` throws in tests and is dropped and logged in production builds. | `planned` |
 | **AC-SHL-6.12** | After sign-out and sign-in, no subscription from the previous session receives events. | `planned` |
 | **AC-SHL-6.13** | The first successful connection doesn't publish `realtime:reconnected`; a reconnection after a drop does, exactly once. | `planned` |
-| **AC-SHL-6.14** | A tenant_admin's socket receives no events about other tenants (mock-api integration test). | `planned` |
-| **AC-SHL-6.15** | A tenant_viewer's socket receives `tenant.updated` for `t_acme` and nothing for other tenants (mock-api integration test). | `planned` |
+| **AC-SHL-6.14** | A tenant_admin's socket receives no events about other tenants (mock-api integration test). | `done` |
+| **AC-SHL-6.15** | A tenant_viewer's socket receives `tenant.updated` for `t_acme` and nothing for other tenants (mock-api integration test). | `done` |

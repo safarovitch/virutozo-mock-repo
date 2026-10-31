@@ -18,8 +18,9 @@ pnpm install
 
 | Command | What it does |
 |---|---|
-| `pnpm dev` | Shell (4200) and the three remotes (4201–4203) with hot reload. The shell proxies `/api` to mock-api (4000, from Day 2). |
-| `pnpm e2e:stack` | Builds everything in `e2e` mode and starts the gateway on 8080: one origin for the app, the remotes and the API. |
+| `pnpm dev` | Shell (4200), the three remotes (4201–4203) and mock-api (4000) with hot reload. The shell proxies `/api` to mock-api. |
+| `pnpm e2e:stack` | Builds everything in `e2e` mode and starts mock-api and the gateway on 8080: one origin for the app, the remotes and the API. |
+| `pnpm contract:build && pnpm api:generate` | Rebuilds the contract and regenerates `libs/api-client` (CI fails on any drift). |
 | `pnpm e2e` | Playwright against the gateway (starts `e2e:stack` if it isn't running). |
 | `pnpm demo:local` | The live demo: the e2e stack with realistic latency and failures. |
 | `pnpm build` · `pnpm lint` · `pnpm typecheck` · `pnpm test` | Every project, through Nx. |
@@ -31,7 +32,7 @@ If port 8080 is busy on your machine, run `PORT=8090 pnpm e2e` (the gateway and 
 |---|---|
 | 4200 | shell (dev) |
 | 4201 · 4202 · 4203 | tenants · storage · compute (dev) |
-| 4000 | mock-api (Day 2) |
+| 4000 | mock-api |
 | 8080 | gateway (e2e, demo, preview) |
 
 ## Where the agent failed and what I changed
@@ -44,6 +45,7 @@ Every agent mistake is logged in [docs/agent-log.md](docs/agent-log.md). The mos
 4. **Claims without reading the source.** The agent reported that a hook blocks a command without reading the hook, and changed an ADR reference while claiming it was its own finding. Both were caught in review. → Reviews now check claims against files; the review process stops on facts, not memory.
 5. **Versions from memory.** The agent wrote an Nx plugin path that no longer exists in Nx 24, used a `tsconfig` option TypeScript 6 deprecates, and pinned a React backport release. The post-edit hook (typecheck + lint on every edit) caught the first two within seconds. → AGENTS.md: "check versions, not memory"; candidate CI step: `pnpm peers check`.
 6. **A broken root URL that only an end-to-end test could see.** The gateway returned 403 for `/`; unit tests didn't cover it, the Playwright smoke test did. → Gateway test added for `/`.
+7. **A proxy that silently dropped a security header.** The gateway's WebSocket proxy forwarded the cookie but not `Origin`, so the API (correctly) rejected every proxied socket. Unit tests on both sides passed; only an end-to-end check through the gateway showed it. → The gateway forwards `Origin`, and a test now proxies a real socket and checks the headers.
 
 ## Repository layout
 

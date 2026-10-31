@@ -16,7 +16,7 @@ All generation is deterministic: the seed (42 in every `NIMBUS_MODE`, overridabl
 - **Session:** `POST /api/login` returns `Me` and sets `nimbus_session=demo.<role>.<random>; HttpOnly; Secure; SameSite=Strict; Path=/api; Max-Age=<ttl>`, valid 8 hours. `MOCK_SESSION_TTL_S` shortens it. `POST /api/logout` expires it and closes all of that session's sockets with 4401.
 - **No CORS.** The server sends no `Access-Control-Allow-*` headers (app and API share one origin, ADR-0005).
 - **CSRF:** every POST/PUT/PATCH/DELETE to an authenticated endpoint needs `X-Nimbus-Csrf: 1`, and its `Origin` must be in `APP_ORIGINS`. Otherwise 403 `FORBIDDEN`. WebSocket upgrades with a foreign `Origin` are closed with 4403.
-- **`POST /api/rum`** (`reportVitals`) is the only exemption from the CSRF header (NFR-SEC-6). It's still `Origin`-checked (403), rate-limited to 60 requests per minute per client IP, limited to a 16 KB body, and schema-validated (422).
+- **`POST /api/rum`** (`reportVitals`) is the only exemption from the CSRF header (NFR-SEC-6). It's still `Origin`-checked (403), rate-limited to 60 requests per minute per client IP (429), limited to a 16 KB body (413), and schema-validated (422). The client IP comes from `X-Forwarded-For`, trusted only from `127.0.0.1` (the gateway, D2-08).
 - Permissions per role come from SPEC.md §5.2; `GET /api/me` returns them. Tenant roles have no `tenant:read`.
 - **Suspended tenant:** any change to a suspended tenant's VMs, buckets or quotas returns 409 `TENANT_SUSPENDED`, whoever calls (including provider_admin; resume the tenant first). `TENANT_NOT_ACTIVE` is only for `suspendTenant` on a non-active tenant.
 - **Scoping for provider/reseller:** `listVms` / `listBuckets` without `tenantId` → 422 `VALIDATION_FAILED`; a `tenantId` outside the caller's scope → 404 `NOT_FOUND`.
@@ -44,10 +44,11 @@ The remaining tenants have `resellerId: null` (direct customers of the provider)
 
 ## 4. Tenants (10,000)
 
-- `t_acme` (name `acme`, display "Acme Corporation", plan Business, reseller `r_northwind`, active) always exists. It's the demo tenant for tenant roles.
+- `t_acme` (name `acme`, display "Acme Corporation", plan Business, reseller `r_northwind`, active) always exists. It's the demo tenant for tenant roles. Quotas (D2-05): storage **250 GiB** with **205 GiB** used (82%), VM quota **50** with **40** VMs.
+- Other tenant IDs are `t_` + 5 lowercase base-36 characters from the seeded RNG (D2-06).
 - The rest: names are `<adjective>-<noun>-<n>` slugs (e.g. `brave-otter-17`), unique.
-- Status distribution: active 85%, suspended 8%, provisioning 2%, error 5%.
-- Plan distribution: Starter 50%, Business 30%, Enterprise 15%, Unlimited 5%.
+- Status distribution: active 85%, suspended 8%, provisioning 2%, error 5% (exactly 8,500 / 800 / 200 / 500).
+- Plan distribution: Starter 50%, Business 30%, Enterprise 15%, Unlimited 5% (exactly 5,000 / 3,000 / 1,500 / 500).
 - Quotas: plan defaults ± random within plan max. Usage: 0–110% of quota (about 4% over quota, so warning/danger states show up).
 - `createdAt`: spread over the last 3 years.
 - Reserved names for tests: `acme` (exists, use for TENANT_NAME_TAKEN), `taken-name` (exists).
@@ -64,7 +65,7 @@ The remaining tenants have `resellerId: null` (direct customers of the provider)
   | `vm_17`–`vm_36` | `worker-01`–`worker-20` |
   | `vm_37`–`vm_40` | `cache-01`–`cache-04` |
 
-- VMs of other tenants use `vm_<tenantId-suffix>_<nn>` (e.g. `vm_8f2k1_03`); they're only generated, never referenced by tests.
+- VMs of other tenants use `vm_<tenantId-suffix>_<nn>` (e.g. `vm_8f2k1_03`); they're generated lazily but deterministically from (`MOCK_SEED`, `tenantId`) (D2-06), and never referenced by tests.
 - Status: running 70%, stopped 25%, error 5%. Sizes: 1–16 vCPU, 1–64 GiB RAM, 20–500 GiB disk.
 - `ip`: `10.0.x.y` when running, `null` when stopped.
 - Image: one of `ubuntu-24.04`, `debian-13`, `rocky-10`, `windows-2025`.
@@ -88,6 +89,7 @@ The remaining tenants have `resellerId: null` (direct customers of the provider)
 - On completion the runner emits `task.updated` (final) and then `vm.updated` / `tenant.updated`.
 - `quota.updated { tenantId, quotas }` is emitted on `updateQuotas`, bucket create/delete, plan change, and every 60 s while usage is changing.
 - `bucket.updated { tenantId, bucket | null, name }` is emitted on create, delete (`bucket: null`) and size changes.
+- **Task visibility (`listTasks`, `getTask`, D2-07):** the same scoping as events: providers see all tasks, resellers tasks of their tenants, tenant roles tasks of their own tenant.
 - **Event scoping (RT-12):** a session receives events about resources it can read, plus `tenant.updated` and `quota.updated` for its own tenant (`me.tenant.id`) even without `tenant:read`. Resellers receive events for their own tenants, providers for all.
 - **WebSocket** `/api/events`: heartbeat every 15 s. The session is checked at upgrade and on every heartbeat tick; on expiry or sign-out all of that session's sockets close with **4401**. A foreign `Origin` closes with **4403**. A session may hold at most **5** sockets; the 6th is closed with **4429**.
 - Tasks are kept for 24 hours. Seeded finished tasks for `t_acme`, timestamps relative to the seed time (server start, or the last `POST /api/__test/reset`; tests that check relative times call reset first):
@@ -127,7 +129,7 @@ The remaining tenants have `resellerId: null` (direct customers of the provider)
 | `MOCK_LATENCY_MS` | from mode | added to every HTTP response |
 | `MOCK_FAILURE_RATE` | from mode | reboot failure rate |
 | `MOCK_SESSION_TTL_S` | 28800 | session lifetime; also drives socket expiry (4401) |
-| `APP_ORIGINS` | `http://localhost:8080,http://localhost:4200,https://localhost:8443` | allowed `Origin` values for mutating requests and WebSocket upgrades (gateway, shell dev server, nightly HTTPS gateway) |
+| `APP_ORIGINS` | `http://localhost:8080,http://localhost:4200,https://localhost:8443` | allowed `Origin` values for mutating requests and WebSocket upgrades (gateway, shell dev server, nightly HTTPS gateway). `pnpm e2e:stack` / `demo:local` derive the gateway entry from `PORT` (D2-09) |
 
 Test-only endpoints, under `/api/__test/` so the gateway proxies them and the `Path=/api` session cookie is sent. They exist only when `NIMBUS_MODE` is `dev` or `e2e`, never in `demo`:
 
