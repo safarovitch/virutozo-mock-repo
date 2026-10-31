@@ -140,6 +140,32 @@ describe('gateway routing (SPEC.md §2.2)', () => {
   });
 });
 
+describe('WebSocket proxy (/api/events)', () => {
+  it('TECH-1: forwards the cookie and the browser Origin on the upgrade, so mock-api can check both', async () => {
+    const { default: websocket } = await import('@fastify/websocket');
+    const upstream = Fastify();
+    await upstream.register(websocket);
+    upstream.get('/api/events', { websocket: true }, (socket, req) => {
+      socket.send(JSON.stringify({ cookie: req.headers.cookie ?? null, origin: req.headers.origin ?? null }));
+    });
+    await upstream.listen({ port: 0, host: '127.0.0.1' });
+    const gateway = await buildGateway(fixture({ mockApiUrl: `http://127.0.0.1:${upstream.server.address().port}` }));
+    await gateway.listen({ port: 0, host: '127.0.0.1' });
+
+    const ws = new WebSocket(`ws://127.0.0.1:${gateway.server.address().port}/api/events`, {
+      headers: { cookie: 'nimbus_session=abc', origin: 'http://localhost:8080' },
+    });
+    const received = await new Promise((resolve, reject) => {
+      ws.onmessage = (m) => resolve(JSON.parse(String(m.data)));
+      ws.onerror = reject;
+    });
+    expect(received).toEqual({ cookie: 'nimbus_session=abc', origin: 'http://localhost:8080' });
+    ws.close();
+    await gateway.close();
+    await upstream.close();
+  });
+});
+
 describe('gateway modes', () => {
   it('TECH-1: FAIL_REMOTES makes that remote return 503', async () => {
     const app = await buildGateway(fixture({ failRemotes: new Set(['storage']), mode: 'demo', testEndpoints: false }));

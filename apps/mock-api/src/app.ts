@@ -48,6 +48,17 @@ export async function buildMockApi(config: MockApiConfig) {
   // trustProxy: only the gateway on this machine may set X-Forwarded-For (D2-08).
   const app = Fastify({ logger: false, trustProxy: '127.0.0.1' });
   await app.register(websocket);
+  // Body-less POSTs (suspend, resume, logout) may still carry `content-type: application/json`; treat an empty
+  // body as "no body" instead of a parse error. Malformed JSON stays a 422 VALIDATION_FAILED.
+  app.removeContentTypeParser('application/json');
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
+    if (body === '') return done(null, undefined);
+    try {
+      done(null, JSON.parse(body as string));
+    } catch {
+      done(Object.assign(new Error('Invalid JSON'), { statusCode: 400 }), undefined);
+    }
+  });
   app.addHook('onClose', async () => {
     runner.stop();
     hub.stop();

@@ -58,6 +58,15 @@ export async function buildGateway(config) {
     prefix: '/api',
     rewritePrefix: '/api',
     websocket: true,
+    // The proxy opens its own upstream socket and by default forwards only `cookie`. mock-api also checks
+    // `Origin` on the upgrade (NFR-SEC-6, close 4403), so forward the browser's Origin too.
+    wsClientOptions: {
+      rewriteRequestHeaders: (/** @type {Record<string, string>} */ headers, /** @type {import('fastify').FastifyRequest} */ request) => ({
+        ...headers,
+        ...(request.headers.cookie ? { cookie: request.headers.cookie } : {}),
+        ...(request.headers.origin ? { origin: request.headers.origin } : {}),
+      }),
+    },
   });
 
   // 2. Manifest

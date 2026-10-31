@@ -16,5 +16,8 @@
   },
   "nx": {
     "name": "gateway"
+  },
+  "devDependencies": {
+    "@fastify/websocket": "11.3.4"
   }
 }

@@ -180,6 +180,17 @@ describe('errors from specs/mock-data.md §9', () => {
     expect((await post('10.4.4.4', [{ ...record, metric: 'NOPE' }])).json).toMatchObject({ code: 'VALIDATION_FAILED' });
   });
 
+  it('TECH-3: a body-less POST with a JSON content type works; malformed JSON is VALIDATION_FAILED', async () => {
+    const provider = await login(app, 'provider_admin');
+    const suspend = await call(app, { method: 'POST', url: '/api/tenants/t_acme/suspend', cookie: provider, headers: { 'content-type': 'application/json' } });
+    expect(suspend.status).toBe(202);
+    const bad = await app.inject({
+      method: 'POST', url: '/api/tenants', payload: '{nope', headers: { cookie: provider, origin: ORIGIN, 'x-nimbus-csrf': '1', 'content-type': 'application/json' },
+    });
+    expect(bad.statusCode).toBe(422);
+    expect(bad.json()).toMatchObject({ code: 'VALIDATION_FAILED' });
+  });
+
   it('TECH-3: unknown routes are 404 NOT_FOUND problems', async () => {
     const provider = await login(app, 'provider_admin');
     expect((await call(app, { url: '/api/tenants/t_nope0', cookie: provider })).json).toMatchObject({ code: 'NOT_FOUND' });
