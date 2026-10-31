@@ -84,3 +84,31 @@ test('TECH-7: guard-tests allows: a weakening change when .claude/allow-test-cha
   const dir = newProject({ allowFile: true });
   assert.equal(exitCode('Edit', { file_path: TEST_FILE, old_string: TWO, new_string: ONE }, dir), 0);
 });
+
+// D1-15: patterns inside strings and comments are data, not code.
+test('TECH-7: guard-tests allows: a test title that mentions xit() (D1-15)', () =>
+  assert.equal(exitCode('Edit', { file_path: TEST_FILE, old_string: "it('a', f)", new_string: "it('turns it() into xit() and it.skip()', f)" }), 0));
+
+test('TECH-7: guard-tests allows: a comment that mentions a skip modifier (D1-15)', () =>
+  assert.equal(exitCode('Edit', { file_path: TEST_FILE, old_string: "it('a', f)", new_string: `// never use it${SKIP}) here\nit('a', f)` }), 0));
+
+test('TECH-7: guard-tests blocks: a real skip next to a string that mentions one (D1-15)', () =>
+  assert.equal(exitCode('Edit', { file_path: TEST_FILE, old_string: "it('a', f)", new_string: `it${SKIP}'mentions xit()', f)` }), 2));
+
+// D1-18: any newly added snapshot assertion is blocked unless .claude/allow-test-change exists.
+const SNAP = '.toMatch' + 'Snapshot()';
+const INLINE_SNAP = '.toMatchInline' + 'Snapshot()';
+
+test('TECH-7: guard-tests blocks: swapping an assertion for a snapshot (D1-18)', () =>
+  assert.equal(exitCode('Edit', { file_path: TEST_FILE, old_string: 'expect(x).toEqual(y);', new_string: `expect(x)${SNAP};` }), 2));
+
+test('TECH-7: guard-tests blocks: adding an inline snapshot (D1-18)', () =>
+  assert.equal(exitCode('Edit', { file_path: TEST_FILE, old_string: 'expect(x).toEqual(y);', new_string: `expect(x).toEqual(y);\nexpect(z)${INLINE_SNAP};` }), 2));
+
+test('TECH-7: guard-tests allows: an edit that keeps an existing snapshot (D1-18)', () =>
+  assert.equal(exitCode('Edit', { file_path: TEST_FILE, old_string: `expect(x)${SNAP};`, new_string: `// renamed\nexpect(x)${SNAP};` }), 0));
+
+test('TECH-7: guard-tests allows: a new snapshot when .claude/allow-test-change exists (D1-18)', () => {
+  const dir = newProject({ allowFile: true });
+  assert.equal(exitCode('Edit', { file_path: TEST_FILE, old_string: 'expect(x).toEqual(y);', new_string: `expect(x)${SNAP};` }, dir), 0);
+});

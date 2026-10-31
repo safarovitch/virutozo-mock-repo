@@ -248,7 +248,7 @@ export interface SessionSnapshot {
 }
 ```
 
-Permission checks use `can(snapshot, permission)` from `libs/auth`.
+Permission checks use `can(snapshot, permission)` from `libs/auth`. On Day 1 the generated models don't exist yet, so `libs/mf-contract` uses minimal hand-made types marked `// TODO(TECH-2): replace with @nimbus/api-client/model`; TECH-2 swaps them for the generated types on Day 2.
 
 `Role`, `Permission` and `TenantSummary` come from the generated contract models, so the snapshot changes when the contract changes. `libs/api-client` exposes them through a dedicated entry point, `@nimbus/api-client/model` (`package.json` `exports` → `src/generated/model/index.ts`), which contains types and enum constants only. `libs/mf-contract` imports them with `import type` only, so it has no runtime dependency on the API client; this is enforced by `@typescript-eslint/consistent-type-imports` and a dependency rule in `libs/mf-contract/eslint.config.mjs` that forbids value imports from `@nimbus/api-client`. Nx project graph: `mf-contract` → `api-client` (type-only).
 
@@ -256,7 +256,7 @@ Permission checks use `can(snapshot, permission)` from `libs/auth`.
 
 Rules:
 - **MF-1** The shell owns the browser URL. Remotes use memory routing, sync it to `ctx.path` on `mount` and `update`, and change it only through `ctx.navigate` (with `{ replace: true }` when the change must not add a history entry, see §7 *Drawer URLs*).
-- **MF-2** Shared singletons: `react`, `react-dom`, `@tanstack/react-query`, `@nimbus/design-tokens`. Vue is shared only within the compute remote. The query **library** is shared; cache **instances** are not: every area (shell, tenants, storage, compute) creates its own `QueryClient`.
+- **MF-2** Shared singletons: `react`, `react-dom`, `@tanstack/react-query`, `@nimbus/design-tokens`, and `@nimbus/ui-kit` for the React apps (shell, tenants, storage). Vue is shared only within the compute remote. The query **library** is shared; cache **instances** are not: every area (shell, tenants, storage, compute) creates its own `QueryClient`.
 - **MF-3** Remotes never import from each other. Cross-remote communication only goes through `EventBus` with typed events.
 - **MF-4** A remote that fails to load or throws shows a contained error panel with *Retry*; the rest of the shell keeps working.
 - **MF-5** After `remote.unmount()`, the shell calls `dispose()` on that remote's bus scope, removing every subscription it still holds.
@@ -1360,16 +1360,15 @@ See `AGENTS.md`; this section only describes what it must cover: where to find t
 | `bug-reproducer` | Uses Playwright against the running dev stand to reproduce a reported bug and attaches a trace | Playwright MCP / shell |
 
 ### 11.4 Hooks
-Implemented both as Claude Code hooks (`.claude/settings.json`) and as tool-agnostic git hooks (`lefthook.yml`), so they protect against any agent or human.
+The shipped hooks are the source of truth; this table describes them. HOOK-1/2/3/5 are Claude Code hooks (`.claude/settings.json`); HOOK-4 is a git hook (`lefthook.yml`) that protects against any agent or human. Agents can't change `.claude/settings.json` or `.claude/hooks/**` (HOOK-2, AGENTS.md H15).
 
-| ID | Trigger | Action |
-|---|---|---|
-| HOOK-1 | After any file edit by the agent | Run `nx affected -t typecheck lint` on touched projects; feed errors back to the agent |
-| HOOK-2 | Before edit | **Block** writes to `libs/api-client/src/generated/**` and `contracts/openapi.yaml` (must be generated) |
-| HOOK-3 | Before edit to `*.test.ts` / `*.spec.ts` | Warn if the diff removes `expect(` calls or adds `.skip`/`.only`; require justification |
-| HOOK-4 | Pre-commit | `nx affected -t test` + `pnpm trace --changed` |
-| HOOK-5 | Before shell command | Block `rm -rf`, `git push --force`, and edits outside the repo |
-| HOOK-6 | On agent stop | Print summary: changed files, AC IDs referenced, tests added, checks passed/failed |
+| ID | Hook | Trigger | Action |
+|---|---|---|---|
+| HOOK-1 | `post-edit-check.mjs` | After an Edit/Write in `apps\|libs\|tools/<project>/` (`.ts`, `.tsx`, `.vue`, `.js`, …) | Run `nx run-many -t typecheck lint -p <project>`; feed errors back to the agent. No-op until the workspace is installed. |
+| HOOK-2 | `guard-paths.mjs` | Before Edit/Write | **Block** files outside the repo; generated files (`contracts/openapi.yaml`, `contracts/tsp-output/**`, `libs/api-client/src/generated/**`); `.env*` except `.env.example`; and the harness (`.claude/settings.json`, `.claude/hooks/**`) unless `.claude/allow-harness-change` exists. |
+| HOOK-3 | `guard-tests.mjs` | Before Edit/Write to `*.test.*`, `*.spec.*`, `*.stories.*` | **Block** removing `expect()` calls, adding `.skip`/`.only`/`.todo`/`.fixme`/`xit`/`xdescribe` in code (strings and comments ignored), and adding any `toMatchSnapshot` / `toMatchInlineSnapshot`, unless `.claude/allow-test-change` exists. |
+| HOOK-4 | `lefthook.yml` | Pre-commit | `nx affected -t lint typecheck test` on staged changes, plus `pnpm test:hooks` when `.claude/hooks/**` changed. |
+| HOOK-5 | `guard-bash.mjs` | Before a shell command | **Block** destructive commands (AGENTS.md H12), checking only the parts that execute: heredoc bodies and quoted strings are data; `bash -c`, `sh -c`, `eval`, `$(…)` and shell-fed heredocs are checked. |
 
 **Hook tests.** Every hook ships with tests, the same way bug fixes come with tests. They live in `.claude/hooks/__tests__/*.test.mjs` and run with Node's built-in runner, `node --test '.claude/hooks/__tests__/*.test.mjs'` (root script `pnpm test:hooks`). It needs no dependencies, so it works before `pnpm install`; the glob form needs Node ≥ 21 (`.nvmrc` pins 22). Lefthook runs it in pre-commit when `.claude/hooks/**` changes, and CI runs it as `ci/hooks`.
 
@@ -1458,11 +1457,11 @@ Target: **9 working days** to a demo-ready state. Each day ends with green CI; A
 
 | Day | Milestone |
 |---|---|
-| 1 | Spec split into `specs/features/` (first commit) · workspace, gateway, shell + 3 remotes, MF, e2e smoke against 8080 · hooks + lefthook · CI |
+| 1 | Spec split into `specs/features/` (first commit) · workspace (one pnpm workspace including `contracts/`, one root lockfile), gateway, shell + 3 remotes, MF, e2e smoke against 8080 · hooks + lefthook · CI skeleton (TECH-5 starts) |
 | 2 | Contract package · generated clients · shared libs (logger, messages, format) · mock-api with cookie session, CSRF, test endpoints |
 | 3 | SPEC-SHL-1/2/3 (sign-in, nav, RBAC, 403) · SPEC-SHL-9 (messages wiring) · ui-kit basics + Storybook |
 | 4 | Realtime: `libs/realtime`, root and scoped bus, WS client and close codes (SPEC-SHL-6) · SPEC-TSK-1 task center |
-| 5 | SPEC-TEN-1 tenant list · SPEC-TEN-3 drawer |
+| 5 | SPEC-TEN-1 tenant list · SPEC-TEN-3 drawer · TECH-5 done (`ci/perf` against the tenant list) |
 | 6 | SPEC-CMP-1/2 VM list and actions (Vue) · SPEC-CMP-5 VM detail · SPEC-SHL-8 tenant context |
 | 7 | SPEC-TEN-2 wizard · SPEC-TEN-4 suspend/resume · SPEC-SHL-4 isolation |
 | 8 | SPEC-STO-1/2 storage · SPEC-CMP-4 and SPEC-STO-3 admin tenant context · SPEC-SHL-7 multi-tab |

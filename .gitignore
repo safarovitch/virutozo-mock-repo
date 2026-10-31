@@ -12,4 +12,5 @@ contracts/tsp-output/
 .env.*
 !.env.example
 .claude/allow-test-change
+.claude/allow-harness-change
 .claude/settings.local.json

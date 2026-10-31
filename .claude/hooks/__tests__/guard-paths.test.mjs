@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -44,3 +44,36 @@ for (const [name, file] of Object.entries(allowed)) {
   test(`TECH-7: guard-paths allows: ${name}`, () => assert.equal(exitCode({ file_path: file }), 0, file));
 }
 test('TECH-7: guard-paths allows: tool call without a file path', () => assert.equal(exitCode({}), 0));
+
+// D1-10: the harness itself is protected unless a human creates .claude/allow-harness-change.
+function exitCodeIn(dir, toolInput) {
+  const res = spawnSync(process.execPath, [HOOK], {
+    input: JSON.stringify({ tool_name: 'Edit', tool_input: toolInput }),
+    env: { ...process.env, CLAUDE_PROJECT_DIR: dir },
+    encoding: 'utf8',
+  });
+  return res.status;
+}
+
+const harnessFiles = {
+  'Claude Code settings': '.claude/settings.json',
+  'a hook': '.claude/hooks/guard-bash.mjs',
+  'a hook library': '.claude/hooks/guard-bash.lib.mjs',
+  'a hook test': '.claude/hooks/__tests__/guard-bash.test.mjs',
+};
+
+for (const [name, file] of Object.entries(harnessFiles)) {
+  test(`TECH-7: guard-paths blocks: editing ${name} (D1-10)`, () => assert.equal(exitCode({ file_path: file }), 2, file));
+}
+
+test('TECH-7: guard-paths allows: editing a hook when .claude/allow-harness-change exists (D1-10)', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'nimbus-guard-paths-allow-'));
+  mkdirSync(path.join(dir, '.claude'), { recursive: true });
+  writeFileSync(path.join(dir, '.claude/allow-harness-change'), '');
+  assert.equal(exitCodeIn(dir, { file_path: '.claude/hooks/guard-bash.mjs' }), 0);
+});
+
+test('TECH-7: guard-paths allows: local settings and skills (not protected, D1-10)', () => {
+  assert.equal(exitCode({ file_path: '.claude/settings.local.json' }), 0);
+  assert.equal(exitCode({ file_path: '.claude/skills/add-wizard/SKILL.md' }), 0);
+});

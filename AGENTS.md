@@ -15,6 +15,8 @@ You are working in an Nx + pnpm monorepo: a React shell with micro-frontends (Re
 3. **Stop and wait.** Don't resolve product decisions or contradictions yourself.
 4. Apply the human's decisions, record them in a dated `docs/decisions/` file, then start building.
 
+**What blocks building.** Stop and ask only for product behaviour users would notice, security, or anything irreversible. For everything else, decide yourself and keep building. That includes missing details, wording, contradictions where the code or a later decision is clearly the truth, and harness bugs with an obvious fix. Record each such decision in that day's `docs/decisions/` file; the human reviews them in batch at the end of the day.
+
 ## 2. Hard rules
 
 These are enforced by hooks, lint rules or CI. Breaking one means your change will be rejected.
@@ -32,9 +34,10 @@ These are enforced by hooks, lint rules or CI. Breaking one means your change wi
 | H9 | No `any` without a `// reason:` comment. No `@ts-ignore`; use `@ts-expect-error` with a reason. | lint |
 | H10 | Playwright: no `waitForTimeout`, no CSS-class selectors. Use `getByRole` and web-first assertions. | lint `nimbus/no-playwright-sleep` |
 | H11 | Don't change Module Federation tooling (Vite + `@module-federation/vite`), ports or shared singletons without an ADR. | review |
-| H12 | Don't run destructive commands: `rm -rf` outside `dist/`/`tmp/`, `git push --force`, `git reset --hard`. | hook `guard-bash` |
+| H12 | Don't run destructive commands. `rm -rf` only on build/cache folders (`dist`, `tmp`, `coverage`, `node_modules`, `.nx`, `storybook-static`, `test-results`, `playwright-report`, `tsp-output`, at the root, under `apps\|libs\|tools/<project>/` or under `contracts/`), never a path containing `..`. No force push, `git reset --hard`, `git clean -f`, `git checkout -- .`, `sudo`, piping a download into a shell, or publishing packages. The hook's allowlist in `.claude/hooks/guard-bash.lib.mjs` is the source of truth. | hook `guard-bash` |
 | H13 | Only `libs/realtime` opens a WebSocket. Remotes get server events from their bus scope (`server:*`). Each area has its own `QueryClient` and never touches another area's cache; query keys come only from Orval's generated helpers (SPEC.md §2.5, RT-1…12). | lint `nimbus/no-websocket-outside-realtime`, `nimbus/no-handwritten-query-key`, review |
 | H14 | Never render server text (`problem.title`, `problem.detail`). Show the message for `Problem.code` from the typed catalogues; no inline UI strings (SPEC.md §9, MSG-1…4). | lint `nimbus/no-server-text` |
+| H15 | Never change the harness: `.claude/settings.json` and `.claude/hooks/**`. Only the human can allow one change, by creating `.claude/allow-harness-change`. Every hook ships with tests in `.claude/hooks/__tests__/`. | hook `guard-paths`, `ci/hooks` |
 
 ## 3. How to work
 

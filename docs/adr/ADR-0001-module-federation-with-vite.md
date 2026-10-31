@@ -30,7 +30,7 @@ Nimbus Console is a shell plus three independently built areas (Tenants, Storage
 
 ### Rules that follow from this decision
 - **R1** Each remote exposes exactly one module, `./mount`, implementing `RemoteModule` from `libs/mf-contract` (see ADR-0002). React and Vue remotes look identical to the shell.
-- **R2** Shared singletons are declared once in `tools/mf/shared.ts` and imported by every `vite.config.ts`: `react`, `react-dom`, `@tanstack/react-query` (React remotes only), `@nimbus/design-tokens`. Vue and `@tanstack/vue-query` are **not** shared with the shell; the compute remote bundles them (they're inside its size budget).
+- **R2** Shared singletons are declared once in `tools/mf/shared.ts` and imported by every `vite.config.ts`: `react`, `react-dom`, `@tanstack/react-query` (React remotes only), `@nimbus/design-tokens`, `@nimbus/ui-kit` (React apps only: shell, tenants, storage). Vue and `@tanstack/vue-query` are **not** shared with the shell; the compute remote bundles them (they're inside its size budget).
 - **R3** Remote URLs come from a runtime manifest fetched at `/remotes.json` and validated with Zod, not hard-coded in the build, so environments can change URLs without rebuilding the shell. There are two manifests: `config/remotes.dev.json` (dev-server URLs, served by the shell's Vite dev server) and `config/remotes.gateway.json` (paths such as `/remotes/tenants/remoteEntry.js`, served by the gateway, ADR-0005). The CSP `script-src` is generated from the same file (NFR-SEC-1).
 - **R4** Fixed dev ports: shell 4200, tenants 4201, storage 4202, compute 4203, mock-api 4000, gateway 8080 (ADR-0005).
 - **R5** Each remote's `remoteEntry.js` and chunks are checked by `size-limit` (NFR-PERF-1).

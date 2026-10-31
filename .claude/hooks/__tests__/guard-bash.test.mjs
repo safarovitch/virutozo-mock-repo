@@ -1,7 +1,12 @@
-// Run: node --test '.claude/hooks/__tests__/*.test.mjs'   (no dependencies; works before `pnpm install`)
+// Run: node --test '.claude/hooks/__tests__/*.test.mjs'   (no dependencies; works before `pnpm install`; Node ≥ 21 for the glob)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { check } from '../guard-bash.mjs';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, symlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { check } from '../guard-bash.lib.mjs';
 
 const blocked = {
   'force push': 'git push --force origin main',
@@ -38,7 +43,30 @@ const allowed = {
   'pseudo word': 'pseudocode --help',
 };
 
-for (const [name, cmd] of Object.entries(blocked)) test(`blocks: ${name}`, () => assert.ok(check(cmd), cmd));
-for (const [name, cmd] of Object.entries(allowed)) test(`allows: ${name}`, () => assert.equal(check(cmd), null, cmd));
+for (const [name, cmd] of Object.entries(blocked)) test(`TECH-7: guard-bash blocks: ${name}`, () => assert.ok(check(cmd), cmd));
+for (const [name, cmd] of Object.entries(allowed)) test(`TECH-7: guard-bash allows: ${name}`, () => assert.equal(check(cmd), null, cmd));
 
-test('blocks: path traversal disguised as a safe folder', () => assert.ok(check('rm -rf dist/../apps')));
+test('TECH-7: guard-bash blocks: path traversal disguised as a safe folder', () => assert.ok(check('rm -rf dist/../apps')));
+
+// Process-level: run the real hook file, so a broken entry point can't hide behind passing unit tests (D1-16).
+const HOOK = fileURLToPath(new URL('../guard-bash.mjs', import.meta.url));
+
+function hookExit(hookPath, command) {
+  const res = spawnSync(process.execPath, [hookPath], {
+    input: JSON.stringify({ tool_input: { command } }),
+    encoding: 'utf8',
+  });
+  return res.status;
+}
+
+test('TECH-7: guard-bash process blocks a destructive command (exit 2)', () =>
+  assert.equal(hookExit(HOOK, 'git reset --hard'), 2));
+
+test('TECH-7: guard-bash process allows a safe command (exit 0)', () =>
+  assert.equal(hookExit(HOOK, 'pnpm nx affected -t test'), 0));
+
+test('TECH-7: guard-bash process still blocks when called through a symlinked folder (D1-16)', () => {
+  const link = path.join(mkdtempSync(path.join(tmpdir(), 'nimbus-guard-bash-')), 'hooks');
+  symlinkSync(path.dirname(HOOK), link, 'dir');
+  assert.equal(hookExit(path.join(link, 'guard-bash.mjs'), 'git reset --hard'), 2);
+});
