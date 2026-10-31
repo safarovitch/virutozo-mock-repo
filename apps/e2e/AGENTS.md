@@ -12,3 +12,4 @@
 - No `waitForTimeout`, no CSS-class selectors; use roles and web-first assertions (H10).
 - `retries: 0` stays (ADR-0007); a flaky test gets a `BUG-*`, not a retry.
 - Simulate remote failures with `page.route`, not env vars (SPEC-SHL-4).
+- A busy `PORT` makes `pnpm e2e` fail fast with `EADDRINUSE` (Apache holds 8080 on some Macs); rerun with `PORT=8090`. Use Node 22 (`nvm use`): Node 20 can't expand the `test:hooks` glob.

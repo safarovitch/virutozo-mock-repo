@@ -15,8 +15,10 @@ const common = { ...process.env, NIMBUS_MODE: 'e2e', APP_ORIGINS: [...origins].j
 const mockEnv = { ...common, PORT: '4000', ...(variant === 'demo-local' ? { MOCK_LATENCY_MS: '150', MOCK_FAILURE_RATE: '0.1' } : {}) };
 const gatewayEnv = { ...common, PORT: port };
 
+// mock-api runs as one `node --import tsx` process, not through `pnpm start`: pnpm → sh → tsx didn't
+// pass SIGTERM on, so a failed gateway left mock-api holding the stdio pipe and Playwright hung.
 const children = [
-  spawn('pnpm', ['--filter', '@nimbus/mock-api', 'start'], { cwd: REPO, env: mockEnv, stdio: 'inherit' }),
+  spawn(process.execPath, ['--import', 'tsx', 'src/main.ts'], { cwd: `${REPO}apps/mock-api`, env: mockEnv, stdio: 'inherit' }),
   spawn(process.execPath, ['apps/gateway/src/main.mjs'], { cwd: REPO, env: gatewayEnv, stdio: 'inherit' }),
 ];
 
@@ -24,6 +26,7 @@ let stopping = false;
 const stop = (code = 0) => {
   if (stopping) return;
   stopping = true;
+  process.exitCode = code; // the timer below is unref'd: Node may exit on its own first
   for (const child of children) child.kill('SIGTERM');
   setTimeout(() => process.exit(code), 500).unref();
 };
