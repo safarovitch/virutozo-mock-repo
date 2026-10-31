@@ -39,6 +39,24 @@ export const en = {
   'connections.reconnecting': 'Reconnecting…',
   'connections.offline': 'Offline',
 
+  // ── Task center (SPEC-TSK-1, D4-12; mock-data §10, all draft) ──
+  'tasks.title': 'Tasks', // draft
+  'tasks.running': 'Running', // draft
+  'tasks.recent': 'Recent', // draft
+  'tasks.empty': 'No tasks in the last 24 hours.', // draft
+  'tasks.viewResource': 'View resource', // draft
+  'tasks.progressLabel': '{kind}: {name}', // draft
+  'taskKind.vm.start': 'Start VM', // draft
+  'taskKind.vm.stop': 'Stop VM', // draft
+  'taskKind.vm.reboot': 'Reboot VM', // draft
+  'taskKind.tenant.suspend': 'Suspend tenant', // draft
+  'taskKind.tenant.resume': 'Resume tenant', // draft
+  'taskKind.tenant.provision': 'Provision tenant', // draft
+  'status.task.queued': 'Queued', // draft
+  'status.task.running': 'Running', // draft
+  'status.task.succeeded': 'Succeeded', // draft
+  'status.task.failed': 'Failed', // draft
+
   // ── Permissions (RBAC-4) ──
   'rbac.disabledTooltip': "You don't have permission to {action}.",
   'actions.createTenant': 'create tenants',
@@ -69,6 +87,8 @@ export const en = {
   'shell.userMenu': 'Account', // draft
   'shell.remoteUnavailable': '{area} is temporarily unavailable.', // draft
   'shell.configError': "Nimbus Console couldn't load its configuration.", // draft
+  'shell.runningTasks_one': '{count} running task', // draft
+  'shell.runningTasks_other': '{count} running tasks', // draft
 
   // ── Common (ui-kit, §8.2; mock-data §10, all draft) ──
   'common.loading': 'Loading…', // draft

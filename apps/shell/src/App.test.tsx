@@ -11,6 +11,8 @@ import type { SessionState, SessionStore } from './session';
 
 // Remote loading is covered by the e2e smoke tests; here a remote is a placeholder.
 vi.mock('./RemoteHost', () => ({ RemoteHost: ({ name }: { name: string }) => <p>remote:{name}</p> }));
+// The task center has its own component tests (TaskCenter.test.tsx); it needs a QueryClient and the API.
+vi.mock('./TaskCenter', () => ({ TaskCenter: () => null }));
 
 afterEach(cleanup);
 

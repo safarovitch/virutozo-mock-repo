@@ -15,5 +15,9 @@
   },
   "nx": {
     "name": "compute"
+  },
+  "devDependencies": {
+    "@nimbus/test-utils": "workspace:*",
+    "jsdom": "30.1.3"
   }
 }

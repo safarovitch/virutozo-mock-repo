@@ -2,10 +2,10 @@ import { StrictMode, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { configureApiClient } from '@nimbus/api-client';
+import { ApiError, configureApiClient } from '@nimbus/api-client';
 import type { Me } from '@nimbus/api-client/model';
 import { getMe, login, logout } from '@nimbus/api-client/react';
-import { createRootBus } from '@nimbus/mf-contract';
+import { createRealtimeClient, eventsUrl } from '@nimbus/realtime';
 import { t } from '@nimbus/messages';
 import { Button, ToastProvider } from '@nimbus/ui-kit';
 import '@nimbus/design-tokens';
@@ -15,6 +15,7 @@ import { loadManifest, type Manifest } from './manifest';
 import { createShellQueryClient } from './query-client';
 import { registerFromManifest } from './remotes';
 import { createSessionStore } from './session';
+import { createSessionBus } from './bus';
 
 const root = createRoot(document.getElementById('root') as HTMLElement);
 
@@ -43,7 +44,20 @@ function Shell({ manifest }: { manifest: Manifest }) {
       login: async (role) => body<Me>(await login({ role })),
       logout: () => logout(),
       // Strict in development and e2e builds: a remote publishing a non-remote event throws (realtime.md).
-      createBus: () => createRootBus({ strict: import.meta.env.MODE !== 'production' }),
+      createBus: () => createSessionBus({ strict: import.meta.env.MODE !== 'production' }),
+      startRealtime: (bus) => {
+        const client = createRealtimeClient({
+          bus,
+          url: eventsUrl(window.location),
+          // WS-5, close 1006: a 401 also reaches onUnauthorized → expire(); anything else means "reconnect".
+          checkSession: () => getMe().then(
+            () => true,
+            (error: unknown) => !(error instanceof ApiError && error.status === 401),
+          ),
+        });
+        client.start();
+        return client;
+      },
       queryClient,
       location: () => window.location,
     });

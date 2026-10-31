@@ -14,6 +14,28 @@ body { margin: 0; font-family: var(--font-sans); font-size: var(--font-size-md);
 .user-menu__panel { position: absolute; inset-inline-end: 0; inset-block-start: calc(100% + var(--space-1)); z-index: 20; min-inline-size: 220px; padding: var(--space-3); display: grid; gap: var(--space-2); background: var(--color-bg); border: 1px solid var(--color-text-muted); border-radius: var(--radius-md); }
 .user-menu__panel p { margin: 0; overflow-wrap: anywhere; }
 .user-menu__panel p:first-child { color: var(--color-text-muted); }
+
+/* Author `display` beats the UA's [hidden] rule; keep disclosure panels closed while hidden. */
+.user-menu__panel[hidden], .task-center__panel[hidden] { display: none; }
+
+/* Connection indicator (WS-4, D4-03): the text carries the state; the dot is decoration. */
+.connection { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--color-text-muted); font-size: 0.875rem; }
+.connection__dot { inline-size: 0.5rem; block-size: 0.5rem; border-radius: 50%; background: var(--color-text-muted); }
+.connection--connected .connection__dot { background: var(--color-success); }
+.connection--reconnecting .connection__dot { background: var(--color-warning); }
+.connection--offline .connection__dot { background: var(--color-danger); }
+
+/* Task center (SPEC-TSK-1, D4-02): same disclosure pattern as the user menu. */
+.task-center { position: relative; }
+.task-center__badge { margin-inline-start: var(--space-1); padding: 0 var(--space-1); min-inline-size: 1.25rem; border-radius: var(--radius-md); background: var(--color-primary); color: var(--color-bg); font-size: 0.75rem; text-align: center; }
+.task-center__panel { position: absolute; inset-inline-end: 0; inset-block-start: calc(100% + var(--space-1)); z-index: 20; inline-size: min(360px, 90vw); max-block-size: 70vh; overflow-y: auto; padding: var(--space-3); display: grid; gap: var(--space-3); background: var(--color-bg); border: 1px solid var(--color-text-muted); border-radius: var(--radius-md); }
+.task-center__heading { margin: 0 0 var(--space-2); font-size: 0.875rem; color: var(--color-text-muted); }
+.task-center__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+.task-center__item { display: grid; gap: var(--space-1); }
+.task-center__row { display: flex; justify-content: space-between; gap: var(--space-2); overflow-wrap: anywhere; }
+.task-center__kind { font-weight: 600; }
+.task-center__row time { color: var(--color-text-muted); white-space: nowrap; }
+.task-center__error { margin: 0; color: var(--color-danger); }
 .login { max-inline-size: 420px; margin: 10vh auto; padding: var(--space-6); display: grid; gap: var(--space-4); }
 .login h1 { margin: 0; font-size: 20px; }
 .login form { display: grid; gap: var(--space-4); justify-items: start; }

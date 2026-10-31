@@ -1,6 +1,6 @@
 // Framework-agnostic permission helpers (specs/shared/rbac.md). Pure, no I/O.
 // RBAC-1: decisions use permissions only, never role names.
-import { Permission } from '@nimbus/api-client/model';
+import { Permission, type ResourceRef } from '@nimbus/api-client/model';
 import type { SessionSnapshot } from '@nimbus/mf-contract';
 
 export type AreaName = 'tenants' | 'compute' | 'storage';
@@ -64,4 +64,23 @@ export function loginUrl(options: { returnTo?: string | null; expired?: boolean 
   if (options.returnTo) params.set('returnTo', options.returnTo);
   const query = params.toString();
   return query ? `/login?${query}` : '/login';
+}
+
+/**
+ * Where a task's *View resource* link goes, or null to render the resource name as plain text (SPEC-TSK-1).
+ * No scope check: the server only sends tasks the user may see (RT-12); a stale link ends in "no longer exists".
+ */
+export function canOpen(target: { resource: ResourceRef; tenantId: string | null }, session: SessionSnapshot): string | null {
+  const id = encodeURIComponent(target.resource.id);
+  switch (target.resource.type) {
+    case 'tenant':
+      return can(session, Permission['tenant:read']) ? `/tenants/${id}` : null;
+    case 'vm': {
+      if (!can(session, Permission['vm:read'])) return null;
+      const tenant = session.tenant === null && target.tenantId ? `?tenantId=${encodeURIComponent(target.tenantId)}` : '';
+      return `/compute/${id}${tenant}`;
+    }
+    default:
+      return null; // buckets have no route
+  }
 }

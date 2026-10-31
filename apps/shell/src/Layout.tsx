@@ -1,13 +1,17 @@
-// Signed-in layout (SPEC-SHL-2): sidebar with the permitted areas (RBAC-3) and a header with the user menu
-// (D3-01). The connection indicator and task center arrive on Day 4, the tenant context bar on Day 6.
+// Signed-in layout (SPEC-SHL-2): sidebar with the permitted areas (RBAC-3) and a header with the connection
+// indicator (WS-4), the task center (SPEC-TSK-1) and the user menu (D3-01). The tenant context bar is Day 6.
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router';
-import { permittedAreas } from '@nimbus/auth';
-import type { SessionSnapshot } from '@nimbus/mf-contract';
+import { Permission } from '@nimbus/api-client/model';
+import { can, permittedAreas } from '@nimbus/auth';
+import type { RootBus, SessionSnapshot } from '@nimbus/mf-contract';
 import { t } from '@nimbus/messages';
 import { Button } from '@nimbus/ui-kit';
+import { ConnectionIndicator } from './ConnectionIndicator';
+import { TaskCenter } from './TaskCenter';
 
-export function Layout({ session, onSignOut, children }: { session: SessionSnapshot; onSignOut: () => void; children: ReactNode }) {
+export function Layout(props: { session: SessionSnapshot; bus: RootBus; onSignOut: () => void; children: ReactNode }) {
+  const { session, bus, onSignOut, children } = props;
   return (
     <div className="layout">
       <nav aria-label="Main" className="sidebar">
@@ -23,7 +27,10 @@ export function Layout({ session, onSignOut, children }: { session: SessionSnaps
       </nav>
       <div className="main">
         <header className="header">
-          {/* TODO(SPEC-SHL-8): tenant context bar. TODO(TECH-4): connection indicator. TODO(SPEC-TSK-1): task center. */}
+          {/* TODO(SPEC-SHL-8): tenant context bar. */}
+          <ConnectionIndicator bus={bus} />
+          {/* D4-13: without task:read there is no task center. */}
+          {can(session, Permission['task:read']) && <TaskCenter bus={bus} session={session} />}
           <UserMenu session={session} onSignOut={onSignOut} />
         </header>
         <main className="content">{children}</main>

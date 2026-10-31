@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@nimbus/api-client';
 import type { Me, Role } from '@nimbus/api-client/model';
-import { createRootBus } from '@nimbus/mf-contract';
+import { createRootBus, type RootBus } from '@nimbus/mf-contract';
 import { createSessionStore, type SessionDeps } from './session';
 
 const me = (role: Role = 'tenant_admin'): Me => ({
@@ -22,6 +22,7 @@ function setup(overrides: Partial<SessionDeps> = {}) {
     queryClient: { clear: vi.fn() },
     location: vi.fn(() => ({ pathname: '/tenants/t_acme', search: '?status=active', hash: '' })),
     ...overrides,
+    startRealtime: vi.fn<(bus: RootBus) => { stop: () => void }>(() => ({ stop: vi.fn() })),
   } satisfies SessionDeps;
   return { deps, store: createSessionStore(deps) };
 }
@@ -103,6 +104,45 @@ describe('session store', () => {
     second.bus.publish('toast:show', { kind: 'info', message: 'hi' });
     expect(heard).not.toHaveBeenCalled();
     expect(deps.createBus).toHaveBeenCalledTimes(2);
+  });
+
+  it('AC-SHL-6.12: after sign-out and sign-in, no subscription from the previous session receives events', async () => {
+    const { deps, store } = setup();
+    await store.boot();
+    const first = store.getState();
+    if (first.status !== 'signedIn') throw new Error('expected signed in');
+    const heard = vi.fn();
+    first.bus.subscribe('server:task.updated', heard);
+    first.bus.scope('compute').subscribe('realtime:status', heard);
+    await store.signOut();
+    await store.signIn('tenant_viewer');
+    // The second session's realtime client publishes on the bus it was started with.
+    const secondBus = deps.startRealtime.mock.calls[1]?.[0] as RootBus;
+    secondBus.publish('realtime:status', { state: 'connected', attempt: 0 });
+    secondBus.publish('server:task.updated', { task: {} as never });
+    expect(heard).not.toHaveBeenCalled();
+    expect(deps.startRealtime.mock.calls[0]?.[0]).toBe(first.bus);
+  });
+
+  it('TECH-4: each session starts its own realtime client on its bus; sign-out and expiry stop it (RT-10)', async () => {
+    const { deps, store } = setup();
+    await store.boot();
+    const firstClient = deps.startRealtime.mock.results[0]?.value as { stop: ReturnType<typeof vi.fn> };
+    await store.signOut();
+    expect(firstClient.stop).toHaveBeenCalledTimes(1);
+    await store.signIn('tenant_admin');
+    const secondClient = deps.startRealtime.mock.results[1]?.value as { stop: ReturnType<typeof vi.fn> };
+    store.expire();
+    expect(secondClient.stop).toHaveBeenCalledTimes(1);
+    expect(deps.startRealtime).toHaveBeenCalledTimes(2);
+  });
+
+  it('AC-SHL-6.6: session:expired from the realtime client (close 4401) goes to /login?reason=expired', async () => {
+    const { deps, store } = setup();
+    await store.boot();
+    const bus = deps.startRealtime.mock.calls[0]?.[0] as RootBus;
+    bus.publish('session:expired', { source: 'realtime' });
+    expect(store.getState()).toEqual({ status: 'signedOut', redirect: '/login?reason=expired&returnTo=%2Ftenants%2Ft_acme%3Fstatus%3Dactive' });
   });
 
   it('AC-SHL-1.1: signing in stores the frozen snapshot from login', async () => {

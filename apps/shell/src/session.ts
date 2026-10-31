@@ -19,6 +19,8 @@ export interface SessionDeps {
   login(role: Role): Promise<Me>;
   logout(): Promise<unknown>;
   createBus(): RootBus;
+  /** Opens this session's WebSocket on its bus (TECH-4); `stop()` closes it for good (RT-10). */
+  startRealtime(bus: RootBus): { stop(): void };
   /** The shell's own query client (remote clients go away with unmount, MF-2). */
   queryClient: Pick<QueryClient, 'clear'>;
   location(): { pathname: string; search: string; hash: string };
@@ -31,7 +33,7 @@ export interface SessionStore {
   boot(): Promise<void>;
   signIn(role: Role): Promise<SessionSnapshot>;
   signOut(): Promise<void>;
-  /** Any 401 after boot, `session:expired` from a remote, or (Day 4) WebSocket close 4401. */
+  /** Any 401 after boot, `session:expired` from a remote, or WebSocket close 4401 (published by libs/realtime). */
   expire(): void;
 }
 
@@ -50,6 +52,7 @@ export function createSessionStore(deps: SessionDeps): SessionStore {
   let state: SessionState = { status: 'booting' };
   const listeners = new Set<() => void>();
   let unsubscribeExpired: (() => void) | null = null;
+  let realtime: { stop(): void } | null = null;
 
   const set = (next: SessionState) => {
     state = next;
@@ -61,6 +64,7 @@ export function createSessionStore(deps: SessionDeps): SessionStore {
     const bus = deps.createBus(); // RT-10: one root bus per session
     unsubscribeExpired = bus.subscribe('session:expired', () => store.expire());
     set({ status: 'signedIn', session, bus });
+    realtime = deps.startRealtime(bus); // after the state is signedIn, so a 4401 can expire it
     return session;
   };
 
@@ -72,8 +76,10 @@ export function createSessionStore(deps: SessionDeps): SessionStore {
   const end = (redirect: string) => {
     unsubscribeExpired?.();
     unsubscribeExpired = null;
+    realtime?.stop(); // closes with 1000, never reconnects (RT-10, D4-07)
+    realtime = null;
     deps.queryClient.clear();
-    // TODO(TECH-4): close the WebSocket here. TODO(SPEC-SHL-7): tell other tabs.
+    // TODO(SPEC-SHL-7): tell other tabs.
     set({ status: 'signedOut', redirect });
   };
 

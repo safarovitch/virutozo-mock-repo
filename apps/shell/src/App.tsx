@@ -37,7 +37,7 @@ export function App({ manifest, store }: { manifest: Manifest; store: SessionSto
   return (
     <SessionProvider session={state.session}>
       <BusToasts bus={state.bus} />
-      <Layout session={state.session} onSignOut={() => void store.signOut()}>
+      <Layout session={state.session} bus={state.bus} onSignOut={() => void store.signOut()}>
         <AreaRoutes manifest={manifest} session={state.session} bus={state.bus} />
       </Layout>
     </SessionProvider>
