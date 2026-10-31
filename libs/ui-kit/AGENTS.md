@@ -4,7 +4,7 @@
 
 **Framework and key libraries:** React 19, TanStack Table 9 (`useTable`, `rowSortingFeature`), TanStack Virtual 3, Storybook 10.6 (`@storybook/react-vite`, `@storybook/addon-vitest`).
 
-**Owns:** `src/styles.css` (tokens only, logical properties, `nui-` prefix); one story per state; `play` stories for behaviour. Shared singleton for the React apps (D1-11).
+**Owns:** the React components; their CSS is `@nimbus/design-tokens/components.css` (shared with ui-kit-vue); one story per state; `play` stories for behaviour. Shared singleton for the React apps (D1-11).
 
 **Local commands:** `pnpm nx run ui-kit:test` (jsdom: unit + every story renders) · `pnpm nx run ui-kit:storybook-test` (play functions in Chromium, CI `ci/storybook-test`) · `pnpm nx run ui-kit:storybook` (6006).
 

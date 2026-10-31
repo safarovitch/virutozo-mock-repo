@@ -1,5 +1,6 @@
 // @nimbus/ui-kit — React design system (SPEC.md §8.2). Shared singleton for the React apps (D1-11).
-// Import '@nimbus/ui-kit/styles.css' once per app, after '@nimbus/design-tokens'.
+// Loads the shared component styles (also used by ui-kit-vue); apps import '@nimbus/design-tokens' first.
+import '@nimbus/design-tokens/components.css';
 export { Button, type ButtonProps, type ButtonVariant } from './Button';
 export { StatusBadge, type StatusTone } from './StatusBadge';
 export { ProgressBar, UsageBar } from './ProgressBar';

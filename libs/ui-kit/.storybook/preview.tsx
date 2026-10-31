@@ -1,6 +1,6 @@
 import type { Preview } from '@storybook/react-vite';
 import '@nimbus/design-tokens';
-import '../src/styles.css';
+import '@nimbus/design-tokens/components.css';
 
 const preview: Preview = {
   parameters: { layout: 'padded' },

@@ -1,4 +1,5 @@
-/* ui-kit styles (SPEC.md §8). Tokens only, logical properties only (RTL-safe), `nui-` prefix. */
+/* Component styles shared by libs/ui-kit (React) and libs/ui-kit-vue (SPEC.md §8.2): one look for both.
+   Tokens only, logical properties only (RTL-safe), `nui-` prefix. */
 .nui-button {
   display: inline-flex; align-items: center; gap: var(--space-2);
   padding-block: var(--space-2); padding-inline: var(--space-3);
