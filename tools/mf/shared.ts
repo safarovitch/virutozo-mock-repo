@@ -12,7 +12,7 @@ export function reactShared(): SharedConfig {
     'react-dom/client': { singleton: true, requiredVersion: '^19.0.0' },
     '@nimbus/design-tokens': { singleton: true },
     // TODO(TECH-2/TECH-4): '@tanstack/react-query' once it's installed (library shared, caches not, MF-2).
-    // TODO(TECH-6): '@nimbus/ui-kit' once the library exists (D1-11).
+    '@nimbus/ui-kit': { singleton: true }, // D1-11
   };
 }
 

@@ -195,12 +195,19 @@ Shared keys live in `libs/messages`; area keys in `apps/<area>/src/messages/en.t
 | Key | Text | Used by | Status |
 |---|---|---|---|
 | `shell.noAccess.title` | 403 – No access | AC-SHL-3.1 | `draft` |
+| `common.loading` | Loading… | SPEC-SHL-1 boot, ui-kit | `draft` |
+| `common.retry` / `close` / `cancel` / `confirm` / `next` / `back` / `dismiss` | Retry / Close / Cancel / Confirm / Next / Back / Dismiss | ui-kit (§8.2) | `draft` |
+| `common.actions` | Actions | ui-kit DataTable | `draft` |
+| `common.notifications` | Notifications | ui-kit Toast region | `draft` |
+| `common.stepOf` | Step {current} of {total} | ui-kit Wizard | `draft` |
+| `common.typeToConfirm` | Type {value} to confirm. | ui-kit ConfirmDialog | `draft` |
+| `common.errorTitle` | Something went wrong | ui-kit ErrorState | `draft` |
+| `usage.warning` / `usage.danger` | Approaching quota / At or over quota | ui-kit UsageBar (NFR-A11Y-3) | `draft` |
 | `auth.title` | Sign in to Nimbus Console | SPEC-SHL-1 | `draft` |
 | `auth.roleLabel` | Sign in as | SPEC-SHL-1 | `draft` |
 | `roles.provider_admin` / `reseller_admin` / `tenant_admin` / `tenant_viewer` | Provider admin / Reseller admin / Tenant admin / Tenant viewer | SPEC-SHL-1, D3-01 | `draft` |
 | `auth.signIn` | Sign in | SPEC-SHL-1 | `draft` |
 | `auth.signOut` | Sign out | SPEC-SHL-1, D3-01 | `draft` |
-| `shell.loading` | Loading… | SPEC-SHL-1 boot | `draft` |
 | `shell.noAccess.body` | You don't have access to this page. | AC-SHL-3.1 | `draft` |
 | `shell.noAccess.goHome` | Go to {area} | AC-SHL-3.1 | `draft` |
 | `shell.notFound` | Page not found | SPEC-SHL-2 | `draft` |

@@ -74,6 +74,24 @@ jobs:
       - run: pnpm exec nx run-many -t build -p shell tenants storage compute
       - run: node tools/ci/no-test-hooks.mjs
 
+  storybook-test:
+    name: ci/storybook-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - uses: nrwl/nx-set-shas@v4
+      # Storybook `play` functions in Chromium (§8.2, TECH-6), for affected design-system libraries.
+      - run: pnpm exec nx affected -t storybook-test
+
   e2e:
     name: ci/e2e
     runs-on: ubuntu-latest

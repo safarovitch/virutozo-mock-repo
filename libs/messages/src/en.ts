@@ -53,6 +53,38 @@ export const en = {
   'areas.tenants': 'Tenants',
   'areas.storage': 'Storage',
   'areas.compute': 'Compute',
+  // ── Sign-in and shell (D3-05; mock-data §10, all draft) ──
+  'auth.title': 'Sign in to Nimbus Console', // draft
+  'auth.roleLabel': 'Sign in as', // draft
+  'auth.signIn': 'Sign in', // draft
+  'auth.signOut': 'Sign out', // draft
+  'roles.provider_admin': 'Provider admin', // draft
+  'roles.reseller_admin': 'Reseller admin', // draft
+  'roles.tenant_admin': 'Tenant admin', // draft
+  'roles.tenant_viewer': 'Tenant viewer', // draft
+  'shell.noAccess.title': '403 – No access', // draft
+  'shell.noAccess.body': "You don't have access to this page.", // draft
+  'shell.noAccess.goHome': 'Go to {area}', // draft
+  'shell.notFound': 'Page not found', // draft
+  'shell.userMenu': 'Account', // draft
+  'shell.remoteUnavailable': '{area} is temporarily unavailable.', // draft
+
+  // ── Common (ui-kit, §8.2; mock-data §10, all draft) ──
+  'common.loading': 'Loading…', // draft
+  'common.retry': 'Retry', // draft
+  'common.close': 'Close', // draft
+  'common.cancel': 'Cancel', // draft
+  'common.confirm': 'Confirm', // draft
+  'common.next': 'Next', // draft
+  'common.back': 'Back', // draft
+  'common.dismiss': 'Dismiss', // draft
+  'common.actions': 'Actions', // draft
+  'common.notifications': 'Notifications', // draft
+  'common.stepOf': 'Step {current} of {total}', // draft
+  'common.typeToConfirm': 'Type {value} to confirm.', // draft
+  'common.errorTitle': 'Something went wrong', // draft
+  'usage.warning': 'Approaching quota', // draft
+  'usage.danger': 'At or over quota', // draft
 } as const;
 
 export type MessageKey = keyof typeof en;
