@@ -12,5 +12,8 @@
     "@typespec/openapi3": "1.17.0",
     "@typespec/openapi": "1.17.0",
     "@redocly/cli": "2.72.1"
+  },
+  "nx": {
+    "name": "contracts"
   }
 }

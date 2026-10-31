@@ -1,0 +1,10 @@
+body { margin: 0; font-family: var(--font-sans); font-size: var(--font-size-md); color: var(--color-text); background: var(--color-bg); }
+.layout { display: flex; min-height: 100vh; }
+.sidebar { width: 200px; padding: var(--space-4); background: var(--color-surface); }
+.sidebar ul { list-style: none; margin: 0; padding: 0; }
+.sidebar a { display: block; padding: var(--space-2); border-radius: var(--radius-sm); color: var(--color-text); text-decoration: none; }
+.sidebar a[aria-current='page'] { background: var(--color-bg); font-weight: 600; }
+.sidebar a:focus-visible, button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.brand { font-weight: 700; margin: 0 0 var(--space-4); }
+.content { flex: 1; padding: var(--space-6); }
+.remote-error { padding: var(--space-4); border: 1px solid var(--color-danger); border-radius: var(--radius-md); }

@@ -1,0 +1,19 @@
+{
+  "name": "@nimbus/compute",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build-e2e": "vite build --mode e2e",
+    "typecheck": "vue-tsc -p tsconfig.json",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@nimbus/design-tokens": "workspace:*",
+    "@nimbus/mf-contract": "workspace:*",
+    "vue": "3.5.44"
+  },
+  "nx": {
+    "name": "compute"
+  }
+}
