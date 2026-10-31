@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Nimbus API
   version: 1.0.0
-  description: 'Mock multi-tenant cloud API for Nimbus Console. Every operation lists its required permission in `x-permission`. Auth is an httpOnly session cookie set by `login`; mutating requests also need `X-Nimbus-Csrf: 1` and a same-origin `Origin` (ADR-0005, NFR-SEC-6).'
+  description: 'Mock multi-tenant cloud API for Nimbus Console. Every operation lists its required permission in `x-permission`. Auth is an httpOnly session cookie set by `login`. Every mutating request to an authenticated endpoint (and `login`/`logout`) must send the header `X-Nimbus-Csrf: 1` and a same-origin `Origin`, else 403 FORBIDDEN; the client adds the header centrally, so it is not modelled per operation (ADR-0005, NFR-SEC-6). Every operation can also return 422, 429 and 500 (`CommonErrors`).'
 tags:
   - name: RUM
     description: Real-user monitoring (Web Vitals)
@@ -73,6 +73,18 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
       tags:
         - Storage
       x-permission: bucket:read
@@ -80,8 +92,7 @@ paths:
       operationId: createBucket
       summary: Create bucket
       description: 409 BUCKET_NAME_TAKEN; 409 TENANT_SUSPENDED if the tenant is suspended; 422 VALIDATION_FAILED or QUOTA_EXCEEDED when storage quota is fully used.
-      parameters:
-        - $ref: '#/components/parameters/CsrfHeader'
+      parameters: []
       responses:
         '201':
           description: The request has succeeded and a new resource has been created as a result.
@@ -113,6 +124,18 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
       tags:
         - Storage
       requestBody:
@@ -128,7 +151,6 @@ paths:
       summary: Delete bucket
       description: Only empty buckets can be deleted (409 BUCKET_NOT_EMPTY); 409 TENANT_SUSPENDED if the tenant is suspended.
       parameters:
-        - $ref: '#/components/parameters/CsrfHeader'
         - name: bucketName
           in: path
           required: true
@@ -157,6 +179,24 @@ paths:
                 $ref: '#/components/schemas/Problem'
         '409':
           description: The request conflicts with the current state of the server.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
           content:
             application/problem+json:
               schema:
@@ -195,6 +235,24 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
       tags:
         - Realtime
       x-close-codes:
@@ -211,8 +269,7 @@ paths:
       operationId: login
       summary: Sign in as a demo user
       description: Demo sign-in. No credentials.
-      parameters:
-        - $ref: '#/components/parameters/CsrfHeader'
+      parameters: []
       responses:
         '200':
           description: The request has succeeded.
@@ -238,6 +295,18 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
       tags:
         - Auth
       requestBody:
@@ -253,8 +322,7 @@ paths:
       operationId: logout
       summary: Sign out
       description: Ends the session and clears the cookie.
-      parameters:
-        - $ref: '#/components/parameters/CsrfHeader'
+      parameters: []
       responses:
         '204':
           description: 'There is no content to send for this request, but the headers may be useful. '
@@ -276,6 +344,24 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
       tags:
         - Auth
   /me:
@@ -292,6 +378,24 @@ paths:
                 $ref: '#/components/schemas/Me'
         '401':
           description: Access is unauthorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
           content:
             application/problem+json:
               schema:
@@ -324,6 +428,24 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
       tags:
         - Plans
       x-permission: plan:read
@@ -331,13 +453,37 @@ paths:
     post:
       operationId: reportVitals
       summary: Report Web Vitals
-      description: 'Sent with navigator.sendBeacon; no auth so it works during page unload. The only mutating operation exempt from `X-Nimbus-Csrf` (NFR-SEC-6): unauthenticated, append-only, `Origin`-checked, rate-limited to 60 requests/min per client IP, body limited to 16 KB, schema-validated (422).'
+      description: 'Sent with navigator.sendBeacon; no auth so it works during page unload. The only mutating operation exempt from `X-Nimbus-Csrf` (NFR-SEC-6): unauthenticated, append-only, `Origin`-checked, rate-limited to 60 requests/min per client IP (429), body limited to 16 KB (413), schema-validated (422); a foreign `Origin` gets 403.'
       parameters: []
       responses:
         '204':
           description: 'There is no content to send for this request, but the headers may be useful. '
+        '403':
+          description: Access is forbidden.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '413':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
         '422':
           description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
           content:
             application/problem+json:
               schema:
@@ -376,6 +522,24 @@ paths:
                 $ref: '#/components/schemas/Problem'
         '403':
           description: Access is forbidden.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
           content:
             application/problem+json:
               schema:
@@ -430,6 +594,24 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
       tags:
         - Tasks
       x-permission: task:read
@@ -464,6 +646,24 @@ paths:
                 $ref: '#/components/schemas/Problem'
         '404':
           description: The server cannot find the requested resource.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
           content:
             application/problem+json:
               schema:
@@ -530,6 +730,18 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
       tags:
         - Tenants
       x-permission: tenant:read
@@ -537,8 +749,7 @@ paths:
       operationId: createTenant
       summary: Create tenant
       description: Creates the tenant in `provisioning` status and starts a `tenant.provision` task, returned with it.
-      parameters:
-        - $ref: '#/components/parameters/CsrfHeader'
+      parameters: []
       responses:
         '201':
           description: The request has succeeded and a new resource has been created as a result.
@@ -566,6 +777,18 @@ paths:
                 $ref: '#/components/schemas/Problem'
         '422':
           description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
           content:
             application/problem+json:
               schema:
@@ -614,6 +837,24 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
       tags:
         - Tenants
       x-permission: tenant:read
@@ -621,7 +862,6 @@ paths:
       operationId: updateTenant
       summary: Update tenant
       parameters:
-        - $ref: '#/components/parameters/CsrfHeader'
         - name: tenantId
           in: path
           required: true
@@ -654,6 +894,18 @@ paths:
                 $ref: '#/components/schemas/Problem'
         '422':
           description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
           content:
             application/problem+json:
               schema:
@@ -702,6 +954,24 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
       tags:
         - Tenants
       x-permission: quota:read
@@ -710,7 +980,6 @@ paths:
       summary: Update tenant quotas
       description: 422 QUOTA_BELOW_USAGE / QUOTA_EXCEEDS_PLAN (with `params.resource`); 409 TENANT_SUSPENDED if the tenant is suspended.
       parameters:
-        - $ref: '#/components/parameters/CsrfHeader'
         - name: tenantId
           in: path
           required: true
@@ -753,6 +1022,18 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
       tags:
         - Tenants
       requestBody:
@@ -768,7 +1049,6 @@ paths:
       summary: Resume tenant
       description: 409 TENANT_NOT_SUSPENDED if not suspended.
       parameters:
-        - $ref: '#/components/parameters/CsrfHeader'
         - name: tenantId
           in: path
           required: true
@@ -801,6 +1081,24 @@ paths:
                 $ref: '#/components/schemas/Problem'
         '409':
           description: The request conflicts with the current state of the server.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
           content:
             application/problem+json:
               schema:
@@ -814,7 +1112,6 @@ paths:
       summary: Suspend tenant
       description: 409 TENANT_NOT_ACTIVE if not active (the only use of that code).
       parameters:
-        - $ref: '#/components/parameters/CsrfHeader'
         - name: tenantId
           in: path
           required: true
@@ -847,6 +1144,24 @@ paths:
                 $ref: '#/components/schemas/Problem'
         '409':
           description: The request conflicts with the current state of the server.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
           content:
             application/problem+json:
               schema:
@@ -912,6 +1227,18 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
       tags:
         - Compute
       x-permission: vm:read
@@ -950,6 +1277,24 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
       tags:
         - Compute
       x-permission: vm:read
@@ -962,7 +1307,6 @@ paths:
         409 VM_BUSY if an operation is already running; 409 VM_INVALID_STATE for invalid transitions;
         409 TENANT_SUSPENDED if the VM's tenant is suspended.
       parameters:
-        - $ref: '#/components/parameters/CsrfHeader'
         - name: vmId
           in: path
           required: true
@@ -999,6 +1343,24 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
       tags:
         - Compute
       requestBody:
@@ -1012,14 +1374,6 @@ security:
   - SessionCookie: []
 components:
   parameters:
-    CsrfHeader:
-      name: X-Nimbus-Csrf
-      in: header
-      required: true
-      schema:
-        type: string
-        enum:
-          - '1'
     PageQuery.cursor:
       name: cursor
       in: query

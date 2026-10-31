@@ -341,7 +341,7 @@ Moved to [`specs/shared/rbac.md`](specs/shared/rbac.md): permission strings, the
 
 ### 6.1 Principles
 - **API-1** Contract-first: change `contracts/main.tsp` → `pnpm contract:build` → `pnpm api:generate`. CI fails if `openapi.yaml` or generated code is out of date.
-- **API-2** All errors use RFC 9457 `application/problem+json`: `{ type, title, status, detail, code, params?, errors? }`. The UI shows only the message for `code`, filled from `params` (MSG-3).
+- **API-2** All errors use RFC 9457 `application/problem+json`: `{ type, title, status, detail, code, params?, errors? }`. The UI shows only the message for `code`, filled from `params` (MSG-3). Every operation can return `CommonErrors`: 422 `VALIDATION_FAILED`, 429 `RATE_LIMITED`, 500 `INTERNAL`; `reportVitals` also returns 413 (D2-02).
 - **API-3** Lists use cursor pagination: `?limit=50&cursor=…` → `{ items, nextCursor, total }`.
 - **API-4** Long operations return `202 Accepted` with a `Task`; progress arrives over WebSocket and via `GET /tasks/{id}`.
 - **API-5** All responses are validated at runtime with generated Zod schemas in dev and test; in production validation failures are logged, not thrown.
@@ -349,7 +349,7 @@ Moved to [`specs/shared/rbac.md`](specs/shared/rbac.md): permission strings, the
 
 ### 6.2 Resources
 
-The complete contract is **`contracts/main.tsp`** (source of truth) and the compiled **`contracts/openapi.yaml`**. This table is an index only; if it ever disagrees with the contract, the contract wins. Each operation carries its required permission as `x-permission`. All paths are under **`/api`** (gateway and dev proxy, ADR-0005). Every POST/PUT/PATCH/DELETE to an authenticated endpoint requires `X-Nimbus-Csrf: 1` and a same-origin `Origin`, else 403. The only exemption is `reportVitals` (NFR-SEC-6).
+The complete contract is **`contracts/main.tsp`** (source of truth) and the compiled **`contracts/openapi.yaml`**. This table is an index only; if it ever disagrees with the contract, the contract wins. Each operation carries its required permission as `x-permission`. All paths are under **`/api`** (gateway and dev proxy, ADR-0005). Every POST/PUT/PATCH/DELETE to an authenticated endpoint requires `X-Nimbus-Csrf: 1` and a same-origin `Origin`, else 403. The only exemption is `reportVitals` (NFR-SEC-6). The header isn't modelled per operation: `customFetch` adds it centrally, so generated functions don't take it as an argument (D2-01).
 
 | operationId | Method & path | Permission | Notable errors |
 |---|---|---|---|

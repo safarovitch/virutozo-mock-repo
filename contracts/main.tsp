@@ -20,17 +20,14 @@ using OpenAPI;
 @tagMetadata("Realtime", #{ description: "WebSocket event stream" })
 @tagMetadata("RUM", #{ description: "Real-user monitoring (Web Vitals)" })
 @info(#{ version: "1.0.0" })
-@doc("Mock multi-tenant cloud API for Nimbus Console. Every operation lists its required permission in `x-permission`. Auth is an httpOnly session cookie set by `login`; mutating requests also need `X-Nimbus-Csrf: 1` and a same-origin `Origin` (ADR-0005, NFR-SEC-6).")
+@doc("Mock multi-tenant cloud API for Nimbus Console. Every operation lists its required permission in `x-permission`. Auth is an httpOnly session cookie set by `login`. Every mutating request to an authenticated endpoint (and `login`/`logout`) must send the header `X-Nimbus-Csrf: 1` and a same-origin `Origin`, else 403 FORBIDDEN; the client adds the header centrally, so it is not modelled per operation (ADR-0005, NFR-SEC-6). Every operation can also return 422, 429 and 500 (`CommonErrors`).")
 @useAuth(SessionCookie)
 namespace Nimbus;
 
 @doc("httpOnly session cookie set by `login` (ADR-0005). JavaScript never reads it.")
 model SessionCookie is ApiKeyAuth<ApiKeyLocation.cookie, "nimbus_session">;
 
-@doc("Required on every mutating request (NFR-SEC-6). Requests without it, or with a foreign `Origin`, get 403 FORBIDDEN.")
-model CsrfHeader {
-  @header("X-Nimbus-Csrf") csrf: "1";
-}
+
 
 // ───────────────────────────── Shared ─────────────────────────────
 
@@ -122,7 +119,31 @@ model Unprocessable {
   @body body: Problem;
 }
 
+@error
+model PayloadTooLarge {
+  @statusCode _: 413;
+  @header contentType: "application/problem+json";
+  @body body: Problem;
+}
+
+@error
+model RateLimited {
+  @statusCode _: 429;
+  @header contentType: "application/problem+json";
+  @body body: Problem;
+}
+
+@error
+model Internal {
+  @statusCode _: 500;
+  @header contentType: "application/problem+json";
+  @body body: Problem;
+}
+
 alias AuthErrors = Unauthorized | Forbidden;
+
+// Returned by any operation: invalid request (VALIDATION_FAILED), rate limit (RATE_LIMITED), server error (INTERNAL).
+alias CommonErrors = Unprocessable | RateLimited | Internal;
 
 @doc("Cursor pagination (API-3).")
 model Page<T> {
@@ -212,7 +233,7 @@ interface AuthApi {
   @post
   @operationId("login")
   @summary("Sign in as a demo user")
-  login(...CsrfHeader, @body body: LoginRequest): {
+  login(@body body: LoginRequest): {
     @statusCode _: 200;
 
     @doc("`nimbus_session=<opaque>; HttpOnly; Secure; SameSite=Strict; Path=/api; Max-Age=<ttl>`")
@@ -220,7 +241,7 @@ interface AuthApi {
     setCookie: string;
 
     @body me: Me;
-  } | Forbidden | Unprocessable;
+  } | Forbidden | CommonErrors;
 }
 
 @route("/logout")
@@ -230,13 +251,13 @@ interface LogoutApi {
   @post
   @operationId("logout")
   @summary("Sign out")
-  logout(...CsrfHeader): {
+  logout(): {
     @statusCode _: 204;
 
     @doc("Expires the `nimbus_session` cookie.")
     @header("Set-Cookie")
     setCookie: string;
-  } | AuthErrors;
+  } | AuthErrors | CommonErrors;
 }
 
 @route("/me")
@@ -245,7 +266,7 @@ interface MeApi {
   @operationId("getMe")
   @summary("Get current user and permissions")
   @get
-  getMe(): Me | Unauthorized;
+  getMe(): Me | Unauthorized | CommonErrors;
 }
 
 // ───────────────────────────── Plans ─────────────────────────────
@@ -281,7 +302,7 @@ interface PlansApi {
   @extension("x-permission", "plan:read")
   @operationId("listPlans")
   @summary("List plans")
-  listPlans(): Plan[] | AuthErrors;
+  listPlans(): Plan[] | AuthErrors | CommonErrors;
 }
 
 // ───────────────────────────── Tenants ─────────────────────────────
@@ -391,31 +412,31 @@ interface TenantsApi {
     @query planId?: ResourceId,
     @query sort?: TenantSort = TenantSort.name,
     ...PageQuery,
-  ): TenantPage | AuthErrors | Unprocessable;
+  ): TenantPage | AuthErrors | CommonErrors;
 
   @doc("Creates the tenant in `provisioning` status and starts a `tenant.provision` task, returned with it.")
   @post
   @extension("x-permission", "tenant:create")
   @operationId("createTenant")
   @summary("Create tenant")
-  createTenant(...CsrfHeader, @body body: TenantCreate): {
+  createTenant(@body body: TenantCreate): {
     @statusCode _: 201;
     @body created: TenantCreated;
-  } | AuthErrors | Conflict | Unprocessable;
+  } | AuthErrors | Conflict | CommonErrors;
 
   @get
   @route("/{tenantId}")
   @extension("x-permission", "tenant:read")
   @operationId("getTenant")
   @summary("Get tenant")
-  getTenant(@path tenantId: ResourceId): Tenant | AuthErrors | NotFound;
+  getTenant(@path tenantId: ResourceId): Tenant | AuthErrors | NotFound | CommonErrors;
 
   @patch(#{ implicitOptionality: false })
   @route("/{tenantId}")
   @extension("x-permission", "tenant:update")
   @operationId("updateTenant")
   @summary("Update tenant")
-  updateTenant(...CsrfHeader, @path tenantId: ResourceId, @body body: TenantUpdate): Tenant | AuthErrors | NotFound | Unprocessable;
+  updateTenant(@path tenantId: ResourceId, @body body: TenantUpdate): Tenant | AuthErrors | NotFound | CommonErrors;
 
   @doc("409 TENANT_NOT_ACTIVE if not active (the only use of that code).")
   @post
@@ -423,7 +444,7 @@ interface TenantsApi {
   @extension("x-permission", "tenant:suspend")
   @operationId("suspendTenant")
   @summary("Suspend tenant")
-  suspendTenant(...CsrfHeader, @path tenantId: ResourceId): TaskAccepted | AuthErrors | NotFound | Conflict;
+  suspendTenant(@path tenantId: ResourceId): TaskAccepted | AuthErrors | NotFound | Conflict | CommonErrors;
 
   @doc("409 TENANT_NOT_SUSPENDED if not suspended.")
   @post
@@ -431,14 +452,14 @@ interface TenantsApi {
   @extension("x-permission", "tenant:suspend")
   @operationId("resumeTenant")
   @summary("Resume tenant")
-  resumeTenant(...CsrfHeader, @path tenantId: ResourceId): TaskAccepted | AuthErrors | NotFound | Conflict;
+  resumeTenant(@path tenantId: ResourceId): TaskAccepted | AuthErrors | NotFound | Conflict | CommonErrors;
 
   @get
   @route("/{tenantId}/quotas")
   @extension("x-permission", "quota:read")
   @operationId("getQuotas")
   @summary("Get tenant quotas and usage")
-  getQuotas(@path tenantId: ResourceId): TenantQuotas | AuthErrors | NotFound;
+  getQuotas(@path tenantId: ResourceId): TenantQuotas | AuthErrors | NotFound | CommonErrors;
 
   @doc("422 QUOTA_BELOW_USAGE / QUOTA_EXCEEDS_PLAN (with `params.resource`); 409 TENANT_SUSPENDED if the tenant is suspended.")
   @put
@@ -446,7 +467,7 @@ interface TenantsApi {
   @extension("x-permission", "quota:update")
   @operationId("updateQuotas")
   @summary("Update tenant quotas")
-  updateQuotas(...CsrfHeader, @path tenantId: ResourceId, @body body: QuotaUpdate): TenantQuotas | AuthErrors | NotFound | Conflict | Unprocessable;
+  updateQuotas(@path tenantId: ResourceId, @body body: QuotaUpdate): TenantQuotas | AuthErrors | NotFound | Conflict | CommonErrors;
 }
 
 // ───────────────────────────── Compute ─────────────────────────────
@@ -502,14 +523,14 @@ interface VmsApi {
     @query status?: VmStatus,
     @query @maxLength(100) q?: string,
     ...PageQuery,
-  ): VmPage | AuthErrors | NotFound | Unprocessable;
+  ): VmPage | AuthErrors | NotFound | CommonErrors;
 
   @get
   @route("/{vmId}")
   @extension("x-permission", "vm:read")
   @operationId("getVm")
   @summary("Get virtual machine")
-  getVm(@path vmId: ResourceId): Vm | AuthErrors | NotFound;
+  getVm(@path vmId: ResourceId): Vm | AuthErrors | NotFound | CommonErrors;
 
   @doc("""
     Valid transitions: stopped→start, running→stop, running→reboot.
@@ -521,7 +542,7 @@ interface VmsApi {
   @extension("x-permission", "vm:operate")
   @operationId("runVmAction")
   @summary("Start, stop or reboot a VM")
-  runVmAction(...CsrfHeader, @path vmId: ResourceId, @body body: VmActionRequest): TaskAccepted | AuthErrors | NotFound | Conflict;
+  runVmAction(@path vmId: ResourceId, @body body: VmActionRequest): TaskAccepted | AuthErrors | NotFound | Conflict | CommonErrors;
 }
 
 // ───────────────────────────── Storage ─────────────────────────────
@@ -560,17 +581,17 @@ interface BucketsApi {
     @query tenantId?: ResourceId,
     @query @maxLength(63) q?: string,
     ...PageQuery,
-  ): BucketPage | AuthErrors | NotFound | Unprocessable;
+  ): BucketPage | AuthErrors | NotFound | CommonErrors;
 
   @doc("409 BUCKET_NAME_TAKEN; 409 TENANT_SUSPENDED if the tenant is suspended; 422 VALIDATION_FAILED or QUOTA_EXCEEDED when storage quota is fully used.")
   @post
   @extension("x-permission", "bucket:create")
   @operationId("createBucket")
   @summary("Create bucket")
-  createBucket(...CsrfHeader, @body body: BucketCreate): {
+  createBucket(@body body: BucketCreate): {
     @statusCode _: 201;
     @body bucket: Bucket;
-  } | AuthErrors | Conflict | Unprocessable;
+  } | AuthErrors | Conflict | CommonErrors;
 
   @doc("Only empty buckets can be deleted (409 BUCKET_NOT_EMPTY); 409 TENANT_SUSPENDED if the tenant is suspended.")
   @delete
@@ -578,9 +599,9 @@ interface BucketsApi {
   @extension("x-permission", "bucket:delete")
   @operationId("deleteBucket")
   @summary("Delete bucket")
-  deleteBucket(...CsrfHeader, @path bucketName: BucketName): {
+  deleteBucket(@path bucketName: BucketName): {
     @statusCode _: 204;
-  } | AuthErrors | NotFound | Conflict;
+  } | AuthErrors | NotFound | Conflict | CommonErrors;
 }
 
 // ───────────────────────────── Tasks ─────────────────────────────
@@ -648,14 +669,14 @@ interface TasksApi {
     @query resourceId?: ResourceId,
     @doc("Only tasks created after this time.") @query since?: utcDateTime,
     ...PageQuery,
-  ): TaskPage | AuthErrors;
+  ): TaskPage | AuthErrors | CommonErrors;
 
   @get
   @route("/{taskId}")
   @extension("x-permission", "task:read")
   @operationId("getTask")
   @summary("Get task")
-  getTask(@path taskId: ResourceId): Task | AuthErrors | NotFound;
+  getTask(@path taskId: ResourceId): Task | AuthErrors | NotFound | CommonErrors;
 }
 
 // ───────────────────────────── Realtime events ─────────────────────────────
@@ -738,7 +759,7 @@ interface EventsApi {
   })
   @operationId("events")
   @summary("Realtime event stream (WebSocket)")
-  events(): ServerEvent | AuthErrors;
+  events(): ServerEvent | AuthErrors | CommonErrors;
 }
 
 // ───────────────────────────── RUM ─────────────────────────────
@@ -781,19 +802,19 @@ model VitalSummary {
 @route("/rum")
 @tag("RUM")
 interface RumApi {
-  @doc("Sent with navigator.sendBeacon; no auth so it works during page unload. The only mutating operation exempt from `X-Nimbus-Csrf` (NFR-SEC-6): unauthenticated, append-only, `Origin`-checked, rate-limited to 60 requests/min per client IP, body limited to 16 KB, schema-validated (422).")
+  @doc("Sent with navigator.sendBeacon; no auth so it works during page unload. The only mutating operation exempt from `X-Nimbus-Csrf` (NFR-SEC-6): unauthenticated, append-only, `Origin`-checked, rate-limited to 60 requests/min per client IP (429), body limited to 16 KB (413), schema-validated (422); a foreign `Origin` gets 403.")
   @useAuth(NoAuth)
   @post
   @operationId("reportVitals")
   @summary("Report Web Vitals")
   reportVitals(@body records: VitalRecord[]): {
     @statusCode _: 204;
-  } | Unprocessable;
+  } | Forbidden | PayloadTooLarge | CommonErrors;
 
   @get
   @route("/summary")
   @extension("x-permission", "task:read")
   @operationId("getVitalsSummary")
   @summary("Get Web Vitals p75 summary")
-  getVitalsSummary(): VitalSummary[] | AuthErrors;
+  getVitalsSummary(): VitalSummary[] | AuthErrors | CommonErrors;
 }

@@ -19,7 +19,9 @@
     "demo:local": "pnpm build:e2e && NIMBUS_MODE=e2e MOCK_LATENCY_MS=150 MOCK_FAILURE_RATE=0.1 node apps/gateway/src/main.mjs",
     "format": "prettier --write .",
     "prepare": "lefthook install",
-    "check:no-test-hooks": "nx run-many -t build -p shell tenants storage compute && node tools/ci/no-test-hooks.mjs"
+    "check:no-test-hooks": "nx run-many -t build -p shell tenants storage compute && node tools/ci/no-test-hooks.mjs",
+    "contract:build": "nx run contracts:contract-build",
+    "api:generate": "nx run api-client:generate"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
