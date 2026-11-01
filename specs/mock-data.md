@@ -232,6 +232,22 @@ Shared keys live in `libs/messages`; area keys in `apps/<area>/src/messages/en.t
 | `tenants.discardChanges` | Discard changes? | SPEC-TEN-2 | `draft` |
 | `tenants.toast.created` | Tenant {name} created. | SPEC-TEN-2 | `draft` |
 | `tenants.toast.suspended` / `resumed` | Tenant {name} suspended. / Tenant {name} resumed. | SPEC-TEN-4 | `draft` |
+| `tenants.title` | Tenants | SPEC-TEN-1, D5-18 | `draft` |
+| `tenants.columns.name` / `displayName` / `status` / `plan` / `storage` / `vmQuota` / `created` | Name / Display name / Status / Plan / Storage / VM quota / Created | SPEC-TEN-1, D5-18 | `draft` |
+| `tenants.search` | Search tenants | AC-TEN-1.2 | `draft` |
+| `tenants.filter.status` / `plan` / `all` | Status / Plan / All | SPEC-TEN-1 | `draft` |
+| `tenants.clearFilters` | Clear filters | SPEC-TEN-1 states | `draft` |
+| `tenants.create` | Create tenant | SPEC-TEN-1, SPEC-TEN-2 | `draft` |
+| `tenants.menu.label` | Actions for {name} | SPEC-TEN-1 row menu | `draft` |
+| `tenants.menu.open` / `viewVms` / `viewBuckets` | Open details / View VMs / View buckets | SPEC-TEN-1 row menu, D5-03 | `draft` |
+| `tenants.drawer.tabs.overview` / `quotas` / `activity` | Overview / Quotas / Activity | SPEC-TEN-3 | `draft` |
+| `tenants.fields.id` / `reseller` / `adminEmail` | ID / Reseller / Admin email | SPEC-TEN-3 Overview | `draft` |
+| `tenants.quotas.storage` / `vms` | Storage quota (GiB) / VM quota | SPEC-TEN-3 Quotas | `draft` |
+| `tenants.quotas.save` | Save quotas | SPEC-TEN-3 Quotas | `draft` |
+| `tenants.quotas.saved` | Quotas updated. | AC-TEN-3.3 | `draft` |
+| `tenants.activity.empty` | No activity in the last 24 hours. | SPEC-TEN-3 Activity | `draft` |
+| `tenants.storageUsage` | {used} of {quota} | SPEC-TEN-1 Storage column | `draft` |
+| `tenants.vmUsage` | {count} of {quota} | SPEC-TEN-1, SPEC-TEN-3 | `draft` |
 | `compute.vmNowStatus` | {name} is now {status}. | AC-CMP-1.4 | `draft` |
 | `compute.operationInProgress` | Operation in progress | AC-CMP-2.4 | `draft` |
 | `compute.toast.started` / `stopped` / `rebooted` | {name} started. / {name} stopped. / {name} rebooted. | SPEC-CMP-2 | `draft` |

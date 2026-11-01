@@ -16,4 +16,6 @@ Shared spec block (moved from SPEC.md [url-conventions](./url-conventions.md)). 
 | Open drawer | push (Back closes it) |
 | Switch tab | replace (Back doesn't step through tabs) |
 | Close with ✕ | push the list URL without `tab` |
-| URL corrections (invalid `tab`, adding or removing `tenantId`) | replace |
+| URL corrections (invalid `tab`, adding or removing `tenantId`, invalid list filters) | replace |
+| Change a list filter or sort | push (Back undoes one change, D5-04) |
+| Search | push when a new search starts, replace while typing (Back undoes a whole search, D5-04) |
