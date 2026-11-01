@@ -4,7 +4,7 @@
 
 **Framework and key libraries:** Playwright 1.64, Chromium on PRs (nightly adds Firefox and WebKit over HTTPS).
 
-**Owns:** `playwright.config.ts` (starts `pnpm e2e:stack` through `webServer`), the journeys E2E-1…16 and the TECH-1 smoke tests.
+**Owns:** `playwright.config.ts` (starts `pnpm e2e:stack` through `webServer`; `NIGHTLY=1 TLS=1` adds Firefox and WebKit over HTTPS), the journeys E2E-1…16, the TECH-1 smoke tests, and `perf/` with `playwright.perf.config.ts` (`pnpm perf`, NFR-PERF-5, `ci/perf`).
 
 **Local commands:** `pnpm e2e` · `GATEWAY_PORT=8090 pnpm e2e` (or `.env`, see `.env.example`) when 8080 is busy · `pnpm e2e --grep "AC-TEN-2"`.
 
@@ -15,3 +15,5 @@
 - Areas need a session: use `signIn(page, role)` from `src/support.ts` (through the real login page); `expectNoA11yViolations(page)` on every new page (NFR-A11Y-1).
 - `getByRole('alert')` also matches the toast region's empty live region: filter by text or scope to the page.
 - A busy `GATEWAY_PORT` makes `pnpm e2e` fail fast with `EADDRINUSE` (Apache holds 8080 on some Macs); set `GATEWAY_PORT=8090`. `baseURL` comes from `tools/gateway-port.mjs`; never hard-code the port. Use Node 22 (`nvm use`): Node 20 can't expand the `test:hooks` glob.
+- Workers share one mock-api: don't change data other tests read (e.g. `t_acme`'s quotas or status). Use `/api/__test/emit` to show an event without storing it.
+- `PerformanceObserver` doesn't see code run by `page.evaluate`; plant measurable work with `setTimeout` inside the page.

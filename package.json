@@ -14,6 +14,8 @@
     "typecheck": "nx run-many -t typecheck",
     "test": "nx run-many -t test",
     "test:hooks": "node --test '.claude/hooks/__tests__/*.test.mjs'",
+    "trace": "node tools/check-trace.ts",
+    "perf": "playwright test --config apps/e2e/playwright.perf.config.ts",
     "e2e:stack": "pnpm build:e2e && node tools/run-stack.mjs e2e",
     "e2e": "playwright test --config apps/e2e/playwright.config.ts",
     "demo:local": "pnpm build:e2e && node tools/run-stack.mjs demo-local",

@@ -7,6 +7,11 @@ import { gatewayPort } from '../../tools/gateway-port.mjs';
 // APP_ORIGINS all use the same port.
 const PORT = gatewayPort();
 const REPO = fileURLToPath(new URL('../../', import.meta.url));
+// Nightly (ci/nightly-e2e, SPEC.md §10): Chromium, Firefox and WebKit over HTTPS (gateway TLS=1 with a
+// throwaway self-signed certificate), so `Secure` cookies behave the same in every browser (ADR-0005).
+const NIGHTLY = process.env.NIGHTLY === '1';
+const TLS = process.env.TLS === '1';
+const ORIGIN = `${TLS ? 'https' : 'http'}://localhost:${PORT}`;
 
 export default defineConfig({
   testDir: './src',
@@ -14,14 +19,19 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
-    baseURL: `http://localhost:${PORT}`,
+    baseURL: ORIGIN,
     trace: 'retain-on-failure',
+    ignoreHTTPSErrors: TLS,
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }], // PR suite: Chromium (SPEC.md §10)
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } }, // PR suite: Chromium (SPEC.md §10)
+    ...(NIGHTLY ? [{ name: 'firefox', use: { ...devices['Desktop Firefox'] } }, { name: 'webkit', use: { ...devices['Desktop Safari'] } }] : []),
+  ],
   webServer: {
     command: 'pnpm e2e:stack',
     cwd: REPO,
-    url: `http://localhost:${PORT}/remotes.json`,
+    url: `${ORIGIN}/remotes.json`,
+    ignoreHTTPSErrors: TLS,
     env: { GATEWAY_PORT: String(PORT) },
     reuseExistingServer: !process.env.CI,
     timeout: 300_000,
