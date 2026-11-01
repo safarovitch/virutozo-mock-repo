@@ -106,6 +106,8 @@ test('AC-SHL-1.13: reloading a tenant drawer URL through the gateway keeps the U
   await page.reload();
   await expect(page).toHaveURL(/\/tenants\/t_acme\?tab=quotas$/);
   await expect(page.getByRole('heading', { name: 'Tenants' })).toBeVisible();
+  await expect(page.getByRole('dialog').getByRole('tab', { name: 'Quotas' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('dialog').getByRole('spinbutton', { name: 'Storage quota (GiB)' })).toBeVisible();
 });
 
 test('AC-SHL-2.1: a tenant_admin sees Compute and Storage in the sidebar, not Tenants', async ({ page }) => {

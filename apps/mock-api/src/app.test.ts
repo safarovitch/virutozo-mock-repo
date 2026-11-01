@@ -343,6 +343,19 @@ describe('realtime (WebSocket /api/events)', () => {
   });
 });
 
+describe('quotas (SPEC-TEN-3)', () => {
+  it('AC-TEN-3.8: updateQuotas emits quota.updated with the new values', async () => {
+    const cookie = await login(app, 'reseller_admin');
+    const events = await openEvents(app, cookie);
+    const GIB = 1024 ** 3;
+    const res = await call(app, { method: 'PUT', url: '/api/tenants/t_acme/quotas', cookie, body: { storageQuotaBytes: 300 * GIB, vmQuota: 45 } });
+    expect(res).toMatchObject({ status: 200, json: { storageQuotaBytes: 300 * GIB, vmQuota: 45 } });
+    await until(() => events.messages.some((m) => m.type === 'quota.updated'));
+    expect(events.messages.find((m) => m.type === 'quota.updated')).toEqual({ type: 'quota.updated', tenantId: 't_acme', quotas: res.json });
+    events.ws.terminate();
+  });
+});
+
 describe('test endpoints', () => {
   it('TECH-3: reset re-seeds data and seeded task times relative to now', async () => {
     const tenantAdmin = await login(app, 'tenant_admin');
