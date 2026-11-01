@@ -18,15 +18,15 @@ Shared rules: [mf-contract](../shared/mf-contract.md) · [realtime](../shared/re
 
 | ID | Criterion | Status |
 |---|---|---|
-| **AC-TEN-3.1** | Opening `/tenants/t_acme` directly shows the list with the drawer open for that tenant. | `in-progress` |
-| **AC-TEN-3.2** | Given `quota:update`, when the user lowers storage quota below current usage, then save is blocked with `errors.QUOTA_BELOW_USAGE.storage` "Storage quota can't be lower than current usage ({used})." with `{used}` formatted by `formatBytes` (e.g. "(840 GiB)"). | `in-progress` |
-| **AC-TEN-3.3** | Given a successful quota update, then the list row's storage bar updates (optimistic update with rollback on error). | `in-progress` |
-| **AC-TEN-3.4** | Given no `quota:update`, then quota fields are read-only text, not disabled inputs. | `in-progress` |
-| **AC-TEN-3.6** | The drawer's Activity list shows a new suspend task and its progress live. | `in-progress` |
-| **AC-TEN-3.7** | Opening `/tenants/<non-existent id>` shows the drawer's not-found state with `errors.NOT_FOUND` "This item no longer exists." | `in-progress` |
-| **AC-TEN-3.8** | `updateQuotas` emits `quota.updated` with the new values (mock-api integration test). | `in-progress` |
+| **AC-TEN-3.1** | Opening `/tenants/t_acme` directly shows the list with the drawer open for that tenant. | `done` |
+| **AC-TEN-3.2** | Given `quota:update`, when the user lowers storage quota below current usage, then save is blocked with `errors.QUOTA_BELOW_USAGE.storage` "Storage quota can't be lower than current usage ({used})." with `{used}` formatted by `formatBytes` (e.g. "(840 GiB)"). | `done` |
+| **AC-TEN-3.3** | Given a successful quota update, then the list row's storage bar updates (optimistic update with rollback on error). | `done` |
+| **AC-TEN-3.4** | Given no `quota:update`, then quota fields are read-only text, not disabled inputs. | `done` |
+| **AC-TEN-3.6** | The drawer's Activity list shows a new suspend task and its progress live. | `done` |
+| **AC-TEN-3.7** | Opening `/tenants/<non-existent id>` shows the drawer's not-found state with `errors.NOT_FOUND` "This item no longer exists." | `done` |
+| **AC-TEN-3.8** | `updateQuotas` emits `quota.updated` with the new values (mock-api integration test). | `done` |
 | **AC-TEN-3.9** | A `server:quota.updated` on a fake bus updates the storage usage card with zero HTTP calls (storage component test; MSW asserts none). | `planned` |
 | **AC-TEN-3.10** | Given a reseller_admin, after saving a quota in the tenant drawer, opening `/storage?tenantId=t_acme` shows the new quota (e2e). | `planned` |
 | **AC-TEN-3.11** | For a suspended tenant, quota fields are read-only and *Resume* is shown. | `in-progress` |
-| **AC-TEN-3.12** | Switching drawer tabs doesn't add history entries; *Back* closes the drawer. | `in-progress` |
-| **AC-TEN-3.13** | `/tenants/t_acme?tab=bogus` shows Overview and the URL becomes `/tenants/t_acme`. | `in-progress` |
+| **AC-TEN-3.12** | Switching drawer tabs doesn't add history entries; *Back* closes the drawer. | `done` |
+| **AC-TEN-3.13** | `/tenants/t_acme?tab=bogus` shows Overview and the URL becomes `/tenants/t_acme`. | `done` |

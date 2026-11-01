@@ -40,10 +40,10 @@ Shared rules: [mf-contract](../shared/mf-contract.md) · [realtime](../shared/re
 
 | ID | Criterion | Status |
 |---|---|---|
-| **AC-TEN-1.1** | Given 10,000 tenants, when the user scrolls to the bottom repeatedly, then at most 60 table row elements (`[role="row"]` in the body) exist in the DOM at any time (blocking e2e suite). Scrolling smoothness is a target, NFR-PERF-5, not an AC. | `in-progress` |
-| **AC-TEN-1.2** | When the user types "acme" in search, then exactly one request is sent 300 ms after the last keystroke, and the URL contains `?q=acme`. | `in-progress` |
-| **AC-TEN-1.3** | When the user clicks the *Name* header, then sort toggles asc → desc, the header has the correct `aria-sort`, and the request uses `sort=name` / `sort=-name`. | `in-progress` |
-| **AC-TEN-1.4** | Given URL `/tenants?status=suspended&sort=-createdAt`, when the page loads, then filters and sort controls reflect the URL. | `in-progress` |
-| **AC-TEN-1.5** | Given a `reseller_admin`, then only their tenants appear (verified in e2e against mock API scoping). | `in-progress` |
-| **AC-TEN-1.6** | Given a `tenant.updated` WS event, then that row's status badge updates without refetching the list. | `in-progress` |
-| **AC-TEN-1.7** | Table is keyboard navigable: Tab into the grid, arrow keys move between rows, Enter opens the detail drawer. | `in-progress` |
+| **AC-TEN-1.1** | Given 10,000 tenants, when the user scrolls to the bottom repeatedly, then at most 60 table row elements (`[role="row"]` in the body) exist in the DOM at any time (blocking e2e suite). Scrolling smoothness is a target, NFR-PERF-5, not an AC. | `done` |
+| **AC-TEN-1.2** | When the user types "acme" in search, then exactly one request is sent 300 ms after the last keystroke, and the URL contains `?q=acme`. | `done` |
+| **AC-TEN-1.3** | When the user clicks the *Name* header, then sort toggles asc → desc, the header has the correct `aria-sort`, and the request uses `sort=name` / `sort=-name`. | `done` |
+| **AC-TEN-1.4** | Given URL `/tenants?status=suspended&sort=-createdAt`, when the page loads, then filters and sort controls reflect the URL. | `done` |
+| **AC-TEN-1.5** | Given a `reseller_admin`, then only their tenants appear (verified in e2e against mock API scoping). | `done` |
+| **AC-TEN-1.6** | Given a `tenant.updated` WS event, then that row's status badge updates without refetching the list. | `done` |
+| **AC-TEN-1.7** | Table is keyboard navigable: Tab into the grid, arrow keys move between rows, Enter opens the detail drawer. | `done` |
