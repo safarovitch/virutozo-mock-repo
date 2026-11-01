@@ -104,6 +104,78 @@ export const SortToggle: Story = {
   },
 };
 
+/** Pages of 100 arrive when the end is reached, like `useInfiniteQuery` in the tenants area. */
+function InfiniteDemo({ onEndReached, total = 1_000, refreshing = false, hold = false }: { onEndReached?: () => void; total?: number; refreshing?: boolean; hold?: boolean }) {
+  const all = useMemo(() => rows(total), [total]);
+  const [loaded, setLoaded] = useState(100);
+  const [fetching, setFetching] = useState(false);
+  const descFirst = useMemo(() => col.columns([col.accessor('name', { header: 'Name' }), col.accessor('vms', { header: 'VMs', sortDescFirst: true })]), []);
+  const [sorting, setSorting] = useState<SortingState>([]);
+  return (
+    <DataTable
+      label="Tenants"
+      columns={descFirst}
+      data={all.slice(0, loaded)}
+      getRowId={(r) => r.id}
+      rowCount={total}
+      sorting={sorting}
+      onSortingChange={setSorting}
+      height={320}
+      refreshing={refreshing}
+      fetchingMore={fetching || hold}
+      onEndReached={() => {
+        onEndReached?.();
+        if (hold) return;
+        setFetching(true);
+        setTimeout(() => {
+          setLoaded((n) => Math.min(n + 100, total));
+          setFetching(false);
+        }, 50);
+      }}
+    />
+  );
+}
+
+export const FetchingMore: Story = { render: () => <InfiniteDemo hold /> };
+export const Refreshing: Story = { render: () => <InfiniteDemo refreshing /> };
+
+export const EndReached: StoryObj<{ onEndReached: () => void }> = {
+  name: 'TECH-6: scrolling to the end asks for the next page once and keeps the DOM small',
+  tags: ['play'],
+  args: { onEndReached: fn() },
+  render: (args) => <InfiniteDemo onEndReached={args.onEndReached} />,
+  play: async ({ args, canvasElement }) => {
+    const grid = within(canvasElement).getByRole('table', { name: 'Tenants' });
+    await expect(grid).toHaveAttribute('aria-rowcount', '1001');
+    await expect(args.onEndReached).not.toHaveBeenCalled();
+    const scroller = canvasElement.querySelector('.nui-table-scroll') as HTMLElement;
+    const firstHeight = scroller.scrollHeight;
+    scroller.scrollTop = firstHeight;
+    await waitFor(() => expect(args.onEndReached).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(within(grid).queryByRole('status')).toBeNull()); // spinner row gone: page 2 arrived
+    await expect(scroller.scrollHeight).toBeGreaterThan(firstHeight);
+    scroller.scrollTop = scroller.scrollHeight;
+    await waitFor(() => expect(args.onEndReached).toHaveBeenCalledTimes(2));
+    await expect(within(grid).getAllByRole('row').length).toBeLessThanOrEqual(60);
+  },
+};
+
+export const DescFirst: Story = {
+  name: 'TECH-6: a sortDescFirst column starts descending and a third click flips it, never unsorted',
+  tags: ['play'],
+  render: () => <InfiniteDemo total={100} />,
+  play: async ({ canvasElement }) => {
+    const header = within(canvasElement).getByRole('columnheader', { name: /VMs/ });
+    const button = within(header).getByRole('button');
+    await userEvent.click(button);
+    await expect(header).toHaveAttribute('aria-sort', 'descending');
+    await userEvent.click(button);
+    await expect(header).toHaveAttribute('aria-sort', 'ascending');
+    await userEvent.click(button);
+    await expect(header).toHaveAttribute('aria-sort', 'descending');
+  },
+};
+
 const viewer: SessionSnapshot = { user: { id: 'u_1', name: 'Vera', email: 'v@acme.example' }, role: 'tenant_viewer', tenant: null, permissions: [Permission['vm:read']] };
 
 export const CanGate: Story = {

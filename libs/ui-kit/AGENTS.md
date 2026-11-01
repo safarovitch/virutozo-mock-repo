@@ -14,4 +14,5 @@
 - Native `<dialog>` closes only on trusted Escape; the Modal handles Escape on keydown so synthetic events in tests behave like real ones.
 - jsdom has no `showModal`; `src/test-setup.ts` stubs it. Test focus and Escape in a `play` story, not in jsdom.
 - DataTable never sorts rows itself (`manualSorting`): the caller owns `sorting` (URL) and the order of `data`.
+- DataTable never removes a sort (`enableSortingRemoval: false`, D5-01); a column that should start descending sets `sortDescFirst`. Infinite scroll: `onEndReached` fires once per data length; a play test must wait for the spinner row to go before scrolling again.
 - TanStack Table 9 differs from v8: read `node_modules/@tanstack/react-table/skills/*` before changing DataTable.
