@@ -11,6 +11,7 @@ const REPO = fileURLToPath(new URL('../../', import.meta.url));
 // throwaway self-signed certificate), so `Secure` cookies behave the same in every browser (ADR-0005).
 const NIGHTLY = process.env.NIGHTLY === '1';
 const TLS = process.env.TLS === '1';
+const EXCLUSIVE = /\.exclusive\.spec\.ts$/;
 const ORIGIN = `${TLS ? 'https' : 'http'}://localhost:${PORT}`;
 
 export default defineConfig({
@@ -24,8 +25,16 @@ export default defineConfig({
     ignoreHTTPSErrors: TLS,
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } }, // PR suite: Chromium (SPEC.md §10)
-    ...(NIGHTLY ? [{ name: 'firefox', use: { ...devices['Desktop Firefox'] } }, { name: 'webkit', use: { ...devices['Desktop Safari'] } }] : []),
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: EXCLUSIVE }, // PR suite: Chromium (SPEC.md §10)
+    ...(NIGHTLY
+      ? [
+          { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testIgnore: EXCLUSIVE },
+          { name: 'webkit', use: { ...devices['Desktop Safari'] }, testIgnore: EXCLUSIVE },
+        ]
+      : []),
+    // D6-16: tests that change data every other test reads (suspending acme) run after the parallel
+    // projects have finished, one at a time.
+    { name: 'exclusive', use: { ...devices['Desktop Chrome'] }, testMatch: EXCLUSIVE, workers: 1, dependencies: NIGHTLY ? ['chromium', 'firefox', 'webkit'] : ['chromium'] },
   ],
   webServer: {
     command: 'pnpm e2e:stack',

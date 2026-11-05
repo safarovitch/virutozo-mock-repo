@@ -93,6 +93,8 @@ test('AC-SHL-1.12: signing out after the session expired lands on /login with no
     server.onClose(() => {});
   });
   await signIn(page, 'tenant_admin');
+  // A6-06: since Day 6 Compute loads data on /compute; let it finish, so no request of its own gets the 401.
+  await expect(page.getByRole('table', { name: 'Virtual machines' })).toBeVisible();
   await expireSession(page);
   await page.getByRole('button', { name: /^Account: / }).click();
   await page.getByRole('button', { name: 'Sign out' }).click();
