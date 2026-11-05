@@ -1,0 +1,13 @@
+/* Compute area layout. Components come from @nimbus/design-tokens/components.css. */
+.compute { display: grid; gap: var(--space-4); }
+.vm-table { inline-size: 100%; border-collapse: collapse; }
+.vm-table th, .vm-table td { padding: var(--space-2); text-align: start; border-block-end: 1px solid var(--color-surface); vertical-align: middle; }
+.vm-table thead th { font-weight: 600; }
+.vm-table tbody th { font-weight: 500; }
+.vm-status { display: inline-flex; align-items: center; gap: var(--space-2); }
+.vm-status__progress { font-variant-numeric: tabular-nums; }
+.vm-actions { display: inline-flex; flex-wrap: wrap; gap: var(--space-2); }
+.vm-fields { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-4); margin: 0; }
+.vm-fields dd { margin: 0; }
+.vm-tasks { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--space-2); }
+.vm-tasks li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }

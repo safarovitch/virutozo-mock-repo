@@ -1,15 +1,19 @@
 # apps/compute — local guide
 
-**Purpose:** Vue 3 remote for the Compute area. Exposes `./mount` (ADR-0002); VM list, actions and detail arrive with SPEC-CMP-1/2/5 (Day 6).
+**Purpose:** Vue 3 remote for the Compute area. Exposes `./mount` (ADR-0002): VM list (SPEC-CMP-1), actions (SPEC-CMP-2) and the drawer (SPEC-CMP-5) since Day 6, plus the admin `?tenantId` plumbing (D6-01); the tenant picker and admin banner come with SPEC-CMP-4 on Day 8.
 
-**Framework and key libraries:** Vue 3.5 with `<script setup lang="ts">` and the Composition API, Pinia for UI state, `@tanstack/vue-query` via generated hooks (Day 2+). Vue and Vue Query are bundled here, not shared with the shell (ADR-0001 R2).
+**Framework and key libraries:** Vue 3.5 (`<script setup lang="ts">`), `@tanstack/vue-query` 5 with generated clients from `@nimbus/api-client/vue`, Pinia 3 for UI state only (`src/ui-store.ts`), `@nimbus/ui-kit-vue`. Vue and Vue Query are bundled here, not shared (ADR-0001 R2). Storybook 10 on port 6010.
 
-**Owns:** its own Vue Query client (VM caches, RT-4); the reactive context `CTX_KEY` (`src/context.ts`); its bus scope `BUS_KEY` and `useBusEvent` (`src/realtime/`).
+**Owns:** its own `QueryClient` per mount (`src/data.ts`, MF-2, RT-4); server events batched per frame (`subscribeComputeEvents`, RT-5); its catalogue `src/messages/en.ts`; the URL below `/compute` (`src/url.ts`); the reactive context `CTX_KEY` and bus `BUS_KEY`.
 
-**Local commands:** `pnpm nx serve compute` (4203) · `pnpm nx run compute:typecheck` (vue-tsc) · `pnpm nx run compute:build` · `pnpm nx run compute:test` (`mountRemote` from `@nimbus/test-utils`).
+**Local commands:** `pnpm nx serve compute` (4203) · `pnpm nx run compute:typecheck` (vue-tsc) · `pnpm nx run compute:test` (jsdom, fake API) · `pnpm nx run compute:build` · `pnpm --filter @nimbus/compute storybook`.
 
 **Local pitfalls**
-- Components read the context with `inject(CTX_KEY)`; `update(ctx)` only swaps the `shallowRef`.
-- In templates, refs are unwrapped: write `ctx?.basePath`, not `ctx?.value.basePath`.
-- Error handling uses `<RemoteBoundary>` with `onErrorCaptured` (MF-6); never parse Vue's `info` string.
-- Subscribe only through `useBusEvent` inside a component's setup, so unmount removes it (RT-7, AC-SHL-6.3).
+- Components read the context with `inject(CTX_KEY)` (`useCtx()`); `update(ctx)` only swaps the `shallowRef`. In templates refs are unwrapped.
+- `getListVmsQueryKey()` (`['vms']`) is the prefix of the list **and** every `getVm`: write VMs only through `patchVms`, which handles both shapes in one `setQueriesData` (AC-CMP-1.2).
+- `getTask` has `staleTime: Infinity`: events keep it current (`applyTask` + `mergeTask`); never refetch it by hand.
+- `NuiButton`: `disabledReason` keeps the button focusable with a tooltip; `disabled` alone is a plain disabled button (used for actions that don't apply to the status).
+- The suspended banner text is also every action's tooltip: in tests scope it to `role="status"`.
+- No jest-dom here: Vitest's DOM matcher types exist but the matchers don't run. Assert on `textContent` / `getAttribute`; tooltips via the `description()` helper in the tests.
+- Tests and stories use `src/testing/fake-api.ts`, never the real API; mount with `renderArea()` (`src/testing/render.ts`).
+- Subscribe only through `useBusEvent` or `subscribeComputeEvents` inside setup with `onUnmounted` cleanup (RT-7, AC-SHL-6.3).

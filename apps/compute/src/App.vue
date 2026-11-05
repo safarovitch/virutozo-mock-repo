@@ -1,20 +1,23 @@
 <script setup lang="ts">
-// Day 1 placeholder (TECH-1). The VM list arrives with SPEC-CMP-1 on Day 6.
-import { inject } from 'vue';
-import { CTX_KEY } from './context';
-import { useBusEvent } from './realtime/useBusEvent';
+// The Compute area root. Without `vm:read` it never renders data (RBAC-5); the shell's 403 page normally
+// catches this first (AC-SHL-3.1).
+import { computed } from 'vue';
+import { Permission } from '@nimbus/api-client/model';
+import { can } from '@nimbus/auth';
+import { EmptyState } from '@nimbus/ui-kit-vue';
+import { useCtx } from './area';
+import ComputeArea from './ComputeArea.vue';
+import { t } from './messages/en';
 
-const ctx = inject(CTX_KEY);
-// RT-6: after a reconnect compute invalidates its own active queries. There are none before SPEC-CMP-1
-// (Day 6); the subscription is here so unmount cleanup is tested from the start (AC-SHL-6.3, D4-11).
-useBusEvent('realtime:reconnected', () => {});
+const ctx = useCtx();
+const canRead = computed(() => can(ctx.value.session, Permission['vm:read']));
 </script>
 
 <template>
-  <section>
-    <h1>Compute</h1>
-    <p>
-      Mounted at <code>{{ ctx?.basePath }}</code>
-    </p>
-  </section>
+  <ComputeArea v-if="canRead" />
+  <EmptyState
+    v-else
+    :title="t('shell.noAccess.title')"
+    :description="t('shell.noAccess.body')"
+  />
 </template>

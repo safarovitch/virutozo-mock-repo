@@ -13,4 +13,4 @@
 - Keep behaviour identical to the React component of the same name; change both together.
 - Stories use render functions (`h`), not template strings: jsdom loads Vue's runtime-only build.
 - Not an MF shared singleton: Vue stays bundled in the compute remote (ADR-0001 R2).
-- No DataTable yet: it arrives with the VM list (SPEC-CMP-1, Day 6), see A3-02.
+- No DataTable: the VM list is a semantic `<table>` in compute (at most 200 rows per page, D6-04), see A3-02.

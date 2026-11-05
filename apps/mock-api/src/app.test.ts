@@ -282,6 +282,20 @@ describe('realtime (WebSocket /api/events)', () => {
     events.ws.terminate();
   });
 
+  it('AC-CMP-2.2: a failed VM task is followed by a vm.updated with the status from before the action', async () => {
+    const cookie = await login(app, 'tenant_admin');
+    const events = await openEvents(app, cookie);
+    await call(app, { method: 'POST', url: '/api/__test/fail-next-task', body: { kind: 'vm.reboot', code: 'VM_BUSY' } });
+    await call(app, { method: 'POST', url: '/api/vms/vm_01/actions', cookie, body: { action: 'reboot' } });
+    await until(() => events.messages.some((m) => m.type === 'vm.updated' && m.vm.activeTaskId === null));
+    const failedAt = events.messages.findIndex((m) => m.type === 'task.updated' && m.task.status === 'failed');
+    const reverted = events.messages.findIndex((m) => m.type === 'vm.updated' && m.vm.activeTaskId === null);
+    expect(failedAt).toBeGreaterThan(-1);
+    expect(reverted).toBeGreaterThan(failedAt); // the final task.updated first, then the server's latest VM status
+    expect(events.messages[reverted]).toMatchObject({ vm: { id: 'vm_01', status: 'running' } });
+    events.ws.terminate();
+  });
+
   it('TECH-3: the socket closes with 4401 when the session expires', async () => {
     const cookie = await login(app, 'tenant_admin');
     const events = await openEvents(app, cookie);

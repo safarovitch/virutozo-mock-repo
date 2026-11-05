@@ -23,5 +23,5 @@ export default defineConfig(({ command, mode }) => ({
       dts: false,
     }),
   ],
-  test: { passWithNoTests: true },
+  test: { include: ['src/**/*.test.ts'], environment: 'jsdom', setupFiles: ['src/testing/setup.ts'] },
 }));
