@@ -149,4 +149,25 @@ describe('shell routing', () => {
     renderAt('/nope', fakeStore(signedIn('tenant_admin')));
     expect(screen.getByRole('heading', { name: 'Page not found' })).toBeTruthy();
   });
+
+  it('AC-SHL-8.1: a tenant_viewer sees "Acme Corporation · Business · Active" in the header', () => {
+    const acme = { id: 't_acme', displayName: 'Acme Corporation', planName: 'Business', status: 'active' } as const;
+    renderAt('/compute', fakeStore({ status: 'signedIn', session: { ...session('tenant_viewer'), tenant: acme }, bus: createRootBus() }));
+    const header = screen.getByRole('banner');
+    expect(within(header).getByText(/Acme Corporation · Business ·/).textContent).toBe('Acme Corporation · Business · Active');
+    expect(screen.queryByText("This tenant is suspended. You can view resources but can't change them.")).toBeNull();
+  });
+
+  it('AC-SHL-8.2: a suspended tenant shows the global banner above the area', () => {
+    const acme = { id: 't_acme', displayName: 'Acme Corporation', planName: 'Business', status: 'suspended' } as const;
+    renderAt('/compute', fakeStore({ status: 'signedIn', session: { ...session('tenant_admin'), tenant: acme }, bus: createRootBus() }));
+    expect(within(screen.getByRole('banner')).getByText(/Acme Corporation/).textContent).toBe('Acme Corporation · Business · Suspended');
+    const banner = screen.getByText("This tenant is suspended. You can view resources but can't change them.");
+    expect(banner.closest('[role="status"]')).not.toBeNull();
+  });
+
+  it('AC-SHL-8.1: admins (no own tenant) get no tenant context bar', () => {
+    renderAt('/tenants', fakeStore(signedIn('provider_admin')));
+    expect(within(screen.getByRole('banner')).queryByText(/·/)).toBeNull();
+  });
 });

@@ -89,6 +89,7 @@ export const en = {
   'shell.configError': "Nimbus Console couldn't load its configuration.", // draft
   'shell.runningTasks_one': '{count} running task', // draft
   'shell.runningTasks_other': '{count} running tasks', // draft
+  'shell.tenantContext': '{displayName} · {planName} · {status}', // draft
 
   // ── Common (ui-kit, §8.2; mock-data §10, all draft) ──
   'common.loading': 'Loading…', // draft

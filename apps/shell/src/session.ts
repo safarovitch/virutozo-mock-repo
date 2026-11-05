@@ -3,7 +3,7 @@
 // Framework-free with injected dependencies, so every rule below is unit-tested (session.test.ts).
 import type { QueryClient } from '@tanstack/react-query';
 import { loginUrl, returnToFor } from '@nimbus/auth';
-import type { Me, Role } from '@nimbus/api-client/model';
+import type { Me, Role, TenantStatus } from '@nimbus/api-client/model';
 import type { RootBus, SessionSnapshot } from '@nimbus/mf-contract';
 
 export type SessionState =
@@ -51,7 +51,7 @@ const isUnauthenticated = (error: unknown) => typeof error === 'object' && error
 export function createSessionStore(deps: SessionDeps): SessionStore {
   let state: SessionState = { status: 'booting' };
   const listeners = new Set<() => void>();
-  let unsubscribeExpired: (() => void) | null = null;
+  let unsubscribeBus: (() => void) | null = null;
   let realtime: { stop(): void } | null = null;
 
   const set = (next: SessionState) => {
@@ -62,7 +62,12 @@ export function createSessionStore(deps: SessionDeps): SessionStore {
   const start = (me: Me): SessionSnapshot => {
     const session = snapshotOf(me);
     const bus = deps.createBus(); // RT-10: one root bus per session
-    unsubscribeExpired = bus.subscribe('session:expired', () => store.expire());
+    const offs = [
+      bus.subscribe('session:expired', () => store.expire()),
+      // SPEC-SHL-8, D6-14: the user's own tenant changed status (RT-12 delivers it without tenant:read).
+      bus.subscribe('server:tenant.updated', ({ tenant }) => patchTenantStatus(tenant.id, tenant.status)),
+    ];
+    unsubscribeBus = () => offs.forEach((off) => off());
     set({ status: 'signedIn', session, bus });
     realtime = deps.startRealtime(bus); // after the state is signedIn, so a 4401 can expire it
     return session;
@@ -73,9 +78,17 @@ export function createSessionStore(deps: SessionDeps): SessionStore {
    * them. The store never navigates itself: React Router runs navigations as transitions, so the router
    * would render the old URL as signed out first. The router follows `redirect` instead (App.tsx).
    */
+  /** A new frozen snapshot with the tenant's new status; the layout and the remotes get it as the next session. */
+  const patchTenantStatus = (id: string, status: TenantStatus) => {
+    if (state.status !== 'signedIn') return;
+    const { session, bus } = state;
+    if (session.tenant?.id !== id || session.tenant.status === status) return;
+    set({ status: 'signedIn', bus, session: Object.freeze({ ...session, tenant: Object.freeze({ ...session.tenant, status }) }) });
+  };
+
   const end = (redirect: string) => {
-    unsubscribeExpired?.();
-    unsubscribeExpired = null;
+    unsubscribeBus?.();
+    unsubscribeBus = null;
     realtime?.stop(); // closes with 1000, never reconnects (RT-10, D4-07)
     realtime = null;
     deps.queryClient.clear();

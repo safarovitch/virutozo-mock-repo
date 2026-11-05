@@ -16,4 +16,5 @@
 - Only 401s after a successful boot are expiries (D3-07); a boot 401 is "signed out", and sign-out ignores logout's 401.
 - The toast region keeps an empty `role="alert"`; scope alert queries in tests to the page.
 - Bus errors go to the logger through `createSessionBus` (`bus.ts`); don't create a root bus with `createRootBus` directly.
-- The header now has a second `role="status"` ("Connection"); name your status queries in tests.
+- The header now has a second `role="status"` ("Connection"); name your status queries in tests. The suspended-tenant banner is a third, unnamed one above `<main>`.
+- `server:tenant.updated` for the own tenant replaces the session snapshot (new frozen object, same bus); `RemoteHost` passes session changes to remotes through `update(ctx)`. Never mutate a snapshot.

@@ -153,4 +153,32 @@ describe('session store', () => {
     expect(session.role).toBe('tenant_viewer');
     expect(Object.isFrozen(session.permissions)).toBe(true);
   });
+
+  it('AC-SHL-8.2: tenant.updated for the own tenant publishes a new session snapshot with the new status', async () => {
+    const { store } = setup();
+    await store.boot();
+    const before = store.getState();
+    if (before.status !== 'signedIn') throw new Error('expected signed in');
+    const listener = vi.fn();
+    store.subscribe(listener);
+    before.bus.publish('server:tenant.updated', { tenant: { id: 't_other', status: 'suspended' } }); // someone else's tenant
+    expect(listener).not.toHaveBeenCalled();
+    before.bus.publish('server:tenant.updated', { tenant: { id: 't_acme', status: 'suspended' } });
+    const after = store.getState();
+    expect(after).toMatchObject({ status: 'signedIn', bus: before.bus, session: { tenant: { id: 't_acme', status: 'suspended', displayName: 'Acme Corporation' } } });
+    expect(after.status === 'signedIn' && Object.isFrozen(after.session.tenant)).toBe(true);
+    expect(before.session.tenant?.status).toBe('active'); // the old snapshot is never mutated
+    before.bus.publish('server:tenant.updated', { tenant: { id: 't_acme', status: 'suspended' } }); // no change: no new state
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('AC-SHL-8.2: after sign-out tenant events no longer reach the store', async () => {
+    const { store } = setup();
+    await store.boot();
+    const state = store.getState();
+    if (state.status !== 'signedIn') throw new Error('expected signed in');
+    await store.signOut();
+    state.bus.publish('server:tenant.updated', { tenant: { id: 't_acme', status: 'suspended' } });
+    expect(store.getState().status).toBe('signedOut');
+  });
 });

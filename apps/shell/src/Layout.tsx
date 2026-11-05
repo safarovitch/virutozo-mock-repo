@@ -1,12 +1,14 @@
 // Signed-in layout (SPEC-SHL-2): sidebar with the permitted areas (RBAC-3) and a header with the connection
-// indicator (WS-4), the task center (SPEC-TSK-1) and the user menu (D3-01). The tenant context bar is Day 6.
+// indicator (WS-4), the task center (SPEC-TSK-1), the user menu (D3-01) and, for tenant roles, the tenant
+// context bar and the suspended banner (SPEC-SHL-8).
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router';
 import { Permission } from '@nimbus/api-client/model';
 import { can, permittedAreas } from '@nimbus/auth';
 import type { RootBus, SessionSnapshot } from '@nimbus/mf-contract';
 import { t } from '@nimbus/messages';
-import { Button } from '@nimbus/ui-kit';
+import type { TenantStatus } from '@nimbus/api-client/model';
+import { Button, StatusBadge, type StatusTone } from '@nimbus/ui-kit';
 import { ConnectionIndicator } from './ConnectionIndicator';
 import { TaskCenter } from './TaskCenter';
 
@@ -27,15 +29,33 @@ export function Layout(props: { session: SessionSnapshot; bus: RootBus; onSignOu
       </nav>
       <div className="main">
         <header className="header">
-          {/* TODO(SPEC-SHL-8): tenant context bar. */}
+          {session.tenant && <TenantContext tenant={session.tenant} />}
           <ConnectionIndicator bus={bus} />
           {/* D4-13: without task:read there is no task center. */}
           {can(session, Permission['task:read']) && <TaskCenter bus={bus} session={session} />}
           <UserMenu session={session} onSignOut={onSignOut} />
         </header>
+        {/* Always present so the change is announced (AC-SHL-8.2); empty unless the tenant is suspended. */}
+        <div role="status" className="tenant-banner-region">
+          {session.tenant?.status === 'suspended' && <p className="tenant-banner">{t('tenantStatus.suspendedBanner')}</p>}
+        </div>
         <main className="content">{children}</main>
       </div>
     </div>
+  );
+}
+
+const TENANT_TONES: Record<TenantStatus, StatusTone> = { active: 'success', suspended: 'warning', provisioning: 'info', error: 'danger' };
+
+/** AC-SHL-8.1: "{displayName} · {planName} · {status}", the status as a badge (never colour alone). */
+function TenantContext({ tenant }: { tenant: NonNullable<SessionSnapshot['tenant']> }) {
+  const [before, after = ''] = t('shell.tenantContext', { displayName: tenant.displayName, planName: tenant.planName, status: '{status}' }).split('{status}');
+  return (
+    <p className="tenant-context">
+      {before}
+      <StatusBadge tone={TENANT_TONES[tenant.status]} label={t(`status.tenant.${tenant.status}`)} />
+      {after}
+    </p>
   );
 }
 

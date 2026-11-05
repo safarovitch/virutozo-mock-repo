@@ -62,9 +62,10 @@ export function RemoteHost({ name, title, manifest, bus, session }: Props) {
     // Mount once per remote and attempt; path changes go through update() below.
   }, [name, attempt]);
 
+  // Path changes and session changes (a new tenant status, SPEC-SHL-8, D6-14) reach the remote as update(ctx).
   useEffect(() => {
     mounted.current?.update(contextFor(path));
-  }, [path]);
+  }, [path, session]);
 
   return (
     <>
