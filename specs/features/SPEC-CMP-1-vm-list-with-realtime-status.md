@@ -21,8 +21,8 @@ Shared rules: [mf-contract](../shared/mf-contract.md) · [realtime](../shared/re
 
 | ID | Criterion | Status |
 |---|---|---|
-| **AC-CMP-1.1** | Given a `vm.updated` event changes VM status to `stopped`, then the row updates within one animation frame of the event being processed, with no network request (unit test, `vi.useFakeTimers({ toFake: ['requestAnimationFrame'] })`). | `planned` |
-| **AC-CMP-1.2** | Given 50 `vm.updated` events arrive within one animation frame, then they result in **one** cache write (spy on `setQueriesData`; fake `requestAnimationFrame`). | `planned` |
-| **AC-CMP-1.3** | Given the WS connection drops and reconnects, then the VM list is refetched once (WS-2). | `planned` |
-| **AC-CMP-1.4** | Status changes are announced politely to screen readers via an `aria-live="polite"` region (`compute.vmNowStatus` "web-01 is now stopped."), at most one announcement per second. | `planned` |
-| **AC-CMP-1.5** | Mounting compute while a VM has an `activeTaskId` shows that task's current progress within one `getTask` call. | `planned` |
+| **AC-CMP-1.1** | Given a `vm.updated` event changes VM status to `stopped`, then the row updates within one animation frame of the event being processed, with no network request (unit test, `vi.useFakeTimers({ toFake: ['requestAnimationFrame'] })`). | `done` |
+| **AC-CMP-1.2** | Given 50 `vm.updated` events arrive within one animation frame, then they result in **one** cache write (spy on `setQueriesData`; fake `requestAnimationFrame`). | `done` |
+| **AC-CMP-1.3** | Given the WS connection drops and reconnects, then the VM list is refetched once (WS-2). | `done` |
+| **AC-CMP-1.4** | Status changes are announced politely to screen readers via an `aria-live="polite"` region (`compute.vmNowStatus` "web-01 is now stopped."), at most one announcement per second. | `done` |
+| **AC-CMP-1.5** | Mounting compute while a VM has an `activeTaskId` shows that task's current progress within one `getTask` call. | `done` |

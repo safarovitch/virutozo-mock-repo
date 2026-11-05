@@ -573,8 +573,8 @@ The nightly suite runs over HTTPS, so `Secure` cookies behave the same in WebKit
 | E2E-7 | Tenant admin creates bucket, hits validation, deletes it | AC-STO-2.* |
 | E2E-8 | Reseller sees only own tenants | AC-TEN-1.5 |
 | E2E-9 | Two tabs (one context): sign out in A → B lands on `/login`; sign in as another role in A → B reloads with that role's areas; a tab on `/login` follows a sign-in | SPEC-SHL-7 (due Day 8) |
-| E2E-10 | Two browser contexts: provider_admin suspends `acme` → tenant_admin's header shows "Suspended", banner appears, VM actions disabled; resume → reverts | SPEC-SHL-8, AC-CMP-4.4/4.5 (due Day 6) |
-| E2E-11 | provider_admin on `/compute`: pick `acme` → open `/compute/vm_01` drawer → reboot with tenant-named confirmation → live progress → reload keeps drawer | SPEC-CMP-4, SPEC-CMP-5 (due Day 6) |
+| E2E-10 | Two browser contexts: provider_admin suspends `acme` → tenant_admin's header shows "Suspended", banner appears, VM actions disabled; resume → reverts | SPEC-SHL-8 (tenant side due Day 6, suspending through the API; through the UI Day 7, SPEC-TEN-4); AC-CMP-4.4/4.5 (admin side, Day 8) (D6-01) |
+| E2E-11 | provider_admin on `/compute`: pick `acme` → open `/compute/vm_01` drawer → reboot with tenant-named confirmation → live progress → reload keeps drawer | SPEC-CMP-4, SPEC-CMP-5 (due Day 8, D6-01) |
 | E2E-12 | reseller_admin on `/storage`: pick own tenant → read-only buckets and usage; foreign `tenantId` → "This item no longer exists." | SPEC-STO-3 (due Day 8) |
 | E2E-13 | `expire-session` → next action lands on `/login?reason=expired&returnTo=…` → reload keeps message → sign in returns to `returnTo` | SPEC-SHL-1, SPEC-SHL-6 (due Day 4) |
 | E2E-14 | `drop-sockets` → header shows "Reconnecting…" then "Connected"; an event emitted after reconnect updates the UI | SPEC-SHL-6 (due Day 4) |

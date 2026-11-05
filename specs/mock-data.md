@@ -252,6 +252,21 @@ Shared keys live in `libs/messages`; area keys in `apps/<area>/src/messages/en.t
 | `compute.operationInProgress` | Operation in progress | AC-CMP-2.4 | `draft` |
 | `compute.toast.started` / `stopped` / `rebooted` | {name} started. / {name} stopped. / {name} rebooted. | SPEC-CMP-2 | `draft` |
 | `compute.chooseTenant` | Choose a tenant to see its virtual machines. | SPEC-CMP-4 | `draft` |
+| `compute.title` | Virtual machines | SPEC-CMP-1 table label, D6-18 | `draft` |
+| `compute.columns.name` / `status` / `vcpus` / `memory` / `ip` / `actions` | Name / Status / vCPU / Memory / IP / Actions | SPEC-CMP-1, D6-18 | `draft` |
+| `status.vm.running` / `stopped` / `starting` / `stopping` / `rebooting` / `error` | Running / Stopped / Starting / Stopping / Rebooting / Error | SPEC-CMP-1, AC-CMP-1.4 | `draft` |
+| `compute.actions.start` / `stop` / `reboot` | Start / Stop / Reboot | SPEC-CMP-2 | `draft` |
+| `compute.actionsFor` | Actions for {name} | SPEC-CMP-2 (action group label) | `draft` |
+| `compute.confirmStop.title` / `compute.confirmStop.body` | Stop {name}? / Anything running on {name} will stop. | SPEC-CMP-2, D6-09 | `draft` |
+| `compute.confirmOnTenant` | {action} {name} on tenant {tenant}? | AC-CMP-4.3, D6-01 | `draft` |
+| `compute.empty` | No virtual machines yet | SPEC-CMP-1 states | `draft` |
+| `compute.loadMore` | Load more | SPEC-CMP-1, D6-04 | `draft` |
+| `compute.vmInError` | No actions are available while this VM is in error. | SPEC-CMP-2, D6-03 | `draft` |
+| `compute.moreStatusChanges` | {count} more VMs changed status. | AC-CMP-1.4, D6-06 | `draft` |
+| `compute.progress` | {percent}% | SPEC-CMP-1 status cell, A6-03 | `draft` |
+| `compute.drawer.overview` / `currentTask` / `recentTasks` | Overview / Current task / Recent tasks | SPEC-CMP-5 | `draft` |
+| `compute.fields.status` / `vcpus` / `memory` / `disk` / `ip` / `image` / `created` | Status / vCPU / Memory / Disk / IP address / Image / Created | SPEC-CMP-5 | `draft` |
+| `compute.recentTasks.empty` | No tasks for this VM in the last 24 hours. | SPEC-CMP-5 | `draft` |
 | `compute.actingOnTenant` | Acting on tenant {displayName} | SPEC-CMP-4 | `draft` |
 | `storage.usagePercent` | {percent}% of quota used | AC-STO-1.1 | `draft` |
 | `storage.bucketNameInvalid` | Use 3–63 lowercase letters, numbers, dots and hyphens. | AC-STO-2.1 | `draft` |

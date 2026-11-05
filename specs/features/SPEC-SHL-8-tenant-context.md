@@ -23,5 +23,5 @@ Shared rules: [mf-contract](../shared/mf-contract.md) · [realtime](../shared/re
 
 | ID | Criterion | Status |
 |---|---|---|
-| **AC-SHL-8.1** | A tenant_viewer sees "Acme Corporation · Business · Active" in the header. | `planned` |
-| **AC-SHL-8.2** | When their tenant becomes suspended (`tenant.updated`), the banner appears and VM and bucket actions are disabled without a reload. | `planned` |
+| **AC-SHL-8.1** | A tenant_viewer sees "Acme Corporation · Business · Active" in the header. | `done` |
+| **AC-SHL-8.2** | When their tenant becomes suspended (`tenant.updated`), the banner appears and VM and bucket actions are disabled without a reload. | `in-progress` |

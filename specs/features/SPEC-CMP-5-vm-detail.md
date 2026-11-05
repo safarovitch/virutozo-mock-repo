@@ -24,7 +24,7 @@ Shared rules: [mf-contract](../shared/mf-contract.md) · [realtime](../shared/re
 
 | ID | Criterion | Status |
 |---|---|---|
-| **AC-CMP-5.1** | `/compute/vm_01` opens the drawer for web-01, including after a reload. | `planned` |
-| **AC-CMP-5.2** | A non-existent VM ID shows `errors.NOT_FOUND` "This item no longer exists." | `planned` |
-| **AC-CMP-5.3** | A running task's progress updates live in the drawer. | `planned` |
-| **AC-CMP-5.4** | A provider_admin opening `/compute/vm_01` without `tenantId` ends on `/compute/vm_01?tenantId=t_acme` with the list for `acme` behind the drawer. | `planned` |
+| **AC-CMP-5.1** | `/compute/vm_01` opens the drawer for web-01, including after a reload. | `done` |
+| **AC-CMP-5.2** | A non-existent VM ID shows `errors.NOT_FOUND` "This item no longer exists." | `done` |
+| **AC-CMP-5.3** | A running task's progress updates live in the drawer. | `done` |
+| **AC-CMP-5.4** | A provider_admin opening `/compute/vm_01` without `tenantId` ends on `/compute/vm_01?tenantId=t_acme` with the list for `acme` behind the drawer. | `done` |
