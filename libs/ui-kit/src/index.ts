@@ -6,6 +6,7 @@ export { StatusBadge, type StatusTone } from './StatusBadge';
 export { ProgressBar, UsageBar } from './ProgressBar';
 export { EmptyState, ErrorState, Skeleton } from './States';
 export { ToastProvider, useToast, TOAST_TIMEOUT_MS, type ToastInput, type ToastTone } from './Toast';
+export { Combobox, type ComboboxOption, type ComboboxProps } from './Combobox';
 export { ConfirmDialog, Dialog, Drawer, type ConfirmDialogProps } from './Dialog';
 export { Wizard, type WizardProps, type WizardStep } from './Wizard';
 export { RemoteErrorBoundary } from './RemoteErrorBoundary';

@@ -2,9 +2,10 @@
 // keeps the `Me` from login/getMe in memory and learns about expiry from a 401 or `session:expired`.
 // Framework-free with injected dependencies, so every rule below is unit-tested (session.test.ts).
 import type { QueryClient } from '@tanstack/react-query';
-import { loginUrl, returnToFor } from '@nimbus/auth';
+import { loginUrl, returnToFor, safeReturnTo } from '@nimbus/auth';
 import type { Me, Role, TenantStatus } from '@nimbus/api-client/model';
 import type { RootBus, SessionSnapshot } from '@nimbus/mf-contract';
+import type { TabChannel, TabMessage } from './tabs';
 
 export type SessionState =
   | { status: 'booting' }
@@ -24,6 +25,13 @@ export interface SessionDeps {
   /** The shell's own query client (remote clients go away with unmount, MF-2). */
   queryClient: Pick<QueryClient, 'clear'>;
   location(): { pathname: string; search: string; hash: string };
+  /** Other tabs (SPEC-SHL-7); absent where BroadcastChannel isn't available. */
+  tabs?: TabChannel;
+  /** Same-origin URL for full page loads (D8-02); the app's origin for validating `returnTo`. */
+  origin?: string;
+  /** A full page load: `reload()` stays on the URL, `load(url)` goes to another one. */
+  reload?(): void;
+  load?(url: string): void;
 }
 
 export interface SessionStore {
@@ -53,6 +61,9 @@ export function createSessionStore(deps: SessionDeps): SessionStore {
   const listeners = new Set<() => void>();
   let unsubscribeBus: (() => void) | null = null;
   let realtime: { stop(): void } | null = null;
+  /** The last user this tab was signed in as (D8-02); survives sign-out in this tab's memory only. */
+  let lastUserId: string | null = null;
+  const tell = (message: TabMessage) => deps.tabs?.post(message);
 
   const set = (next: SessionState) => {
     state = next;
@@ -61,6 +72,7 @@ export function createSessionStore(deps: SessionDeps): SessionStore {
 
   const start = (me: Me): SessionSnapshot => {
     const session = snapshotOf(me);
+    lastUserId = session.user.id;
     const bus = deps.createBus(); // RT-10: one root bus per session
     const offs = [
       bus.subscribe('session:expired', () => store.expire()),
@@ -92,8 +104,35 @@ export function createSessionStore(deps: SessionDeps): SessionStore {
     realtime?.stop(); // closes with 1000, never reconnects (RT-10, D4-07)
     realtime = null;
     deps.queryClient.clear();
-    // TODO(SPEC-SHL-7): tell other tabs.
     set({ status: 'signedOut', redirect });
+  };
+
+  /** What another tab told us (SPEC-SHL-7). Handled without telling anyone else. */
+  const onTabMessage = (message: TabMessage) => {
+    if (message.type === 'signed-out') {
+      if (state.status === 'signedIn') end('/login'); // unsaved input is discarded without a prompt
+    } else if (message.type === 'expired') {
+      if (state.status === 'signedIn') end(loginUrl({ expired: true, returnTo: returnToFor(deps.location()) }));
+    } else if (state.status === 'signedIn') {
+      // Another user: nothing from the previous one may survive, so reload. The same user: refresh `Me`.
+      if (message.userId !== state.session.user.id) deps.reload?.();
+      else void refreshMe();
+    } else if (state.status === 'signedOut') {
+      // D8-02: a /login tab follows with a full page load: its returnTo only for the same user as before.
+      const returnTo = safeReturnTo(new URLSearchParams(deps.location().search).get('returnTo'), deps.origin ?? 'http://invalid');
+      deps.load?.(returnTo && message.userId === lastUserId ? returnTo : '/');
+    }
+  };
+  deps.tabs?.subscribe(onTabMessage);
+
+  /** Same user signed in elsewhere: a new snapshot on the same bus, so remotes get `update(ctx)`. */
+  const refreshMe = async () => {
+    try {
+      const me = await deps.getMe();
+      if (state.status === 'signedIn' && state.session.user.id === me.user.id) set({ status: 'signedIn', bus: state.bus, session: snapshotOf(me) });
+    } catch {
+      // A 401 reaches expire() through onUnauthorized; anything else keeps the current snapshot.
+    }
   };
 
   const store: SessionStore = {
@@ -115,11 +154,15 @@ export function createSessionStore(deps: SessionDeps): SessionStore {
     },
 
     async signIn(role) {
-      return start(await deps.login(role));
+      const session = start(await deps.login(role));
+      tell({ type: 'signed-in', userId: session.user.id });
+      return session;
     },
 
     async signOut() {
       if (state.status !== 'signedIn') return;
+      // Other tabs first (D8-17): the server closes their sockets with 4401 right after logout.
+      tell({ type: 'signed-out' });
       // End before logout, so the 401 an expired session gets from logout can't count as an expiry (AC-SHL-1.12).
       end('/login');
       try {
@@ -132,6 +175,7 @@ export function createSessionStore(deps: SessionDeps): SessionStore {
     expire() {
       if (state.status !== 'signedIn') return; // D3-07: only a 401 after a successful boot is an expiry
       const returnTo = returnToFor(deps.location());
+      tell({ type: 'expired' });
       end(loginUrl({ expired: true, returnTo }));
     },
   };

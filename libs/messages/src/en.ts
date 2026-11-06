@@ -33,6 +33,12 @@ export const en = {
   'status.tenant.error': 'Error', // draft
   'status.tenant.suspending': 'Suspending…', // draft (D7-01)
   'status.tenant.resuming': 'Resuming…', // draft (D7-01)
+  'tenantStatus.openTenant': 'Open tenant', // draft (D8-09)
+
+  // ── Tenant picker for admins in Compute and Storage (SPEC-CMP-4, SPEC-STO-3, D8-06) ──
+  'common.tenant': 'Tenant', // draft
+  'tenantPicker.placeholder': 'Search tenants', // draft
+  'tenantPicker.noResults': 'No tenants match.', // draft
 
   // ── Connection (WS-4, WS-7) ──
   'connections.label': 'Connection',

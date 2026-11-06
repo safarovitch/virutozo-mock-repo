@@ -13,3 +13,4 @@
 - Permissions come from `x-permission` in `openapi.yaml`; the role matrix in `rbac.ts` follows `specs/shared/rbac.md`.
 - Test endpoints exist only when `NIMBUS_MODE` is `dev` or `e2e`; never read `NODE_ENV`.
 - Integration tests run with `timeScale: 0.01`; keep one real-time test for task durations.
+- Buckets of tenants other than acme are generated on first list (`db.bucketsOf`, D8-04); read buckets through it, never `db.buckets` directly, or other tenants look empty.

@@ -157,6 +157,36 @@ describe('errors from specs/mock-data.md §9', () => {
     expect((await call(app, { method: 'PUT', url: '/api/tenants/t_acme/quotas', cookie: provider, body: { vmQuota: 45 } })).json).toMatchObject({ code: 'TENANT_SUSPENDED' });
   });
 
+  it('AC-CMP-4.6: runVmAction as provider_admin on a suspended tenant returns 409 TENANT_SUSPENDED', async () => {
+    app.mock.db().tenants.get('t_acme')!.status = 'suspended';
+    const provider = await login(app, 'provider_admin');
+    const res = await call(app, { method: 'POST', url: '/api/vms/vm_01/actions', cookie: provider, body: { action: 'reboot' } });
+    expect(res).toMatchObject({ status: 409, json: { code: 'TENANT_SUSPENDED' } });
+    expect(app.mock.db().vm('vm_01')?.activeTaskId).toBeNull();
+  });
+
+  it('TECH-3: other tenants get deterministic buckets that add up to their usage (D8-04)', async () => {
+    const provider = await login(app, 'provider_admin');
+    const used = firstTenant((t) => t.id !== 't_acme' && t.storageUsedBytes > 10 * GIB);
+    const empty = firstTenant((t) => t.id !== 't_acme' && t.storageUsedBytes === 0) ?? (() => {
+      const t = firstTenant((x) => x.id !== 't_acme' && x.id !== used.id);
+      t.storageUsedBytes = 0;
+      return t;
+    })();
+    const list = async (tenantId: string) => (await call(app, { method: 'GET', url: `/api/buckets?tenantId=${tenantId}&limit=200`, cookie: provider })).json as { items: Array<{ name: string; sizeBytes: number; tenantId: string }> };
+    const first = await list(used.id);
+    expect(first.items.length).toBeGreaterThan(0);
+    expect(first.items.length).toBeLessThanOrEqual(8);
+    expect(first.items.every((b) => b.tenantId === used.id && b.name.startsWith(`${used.name}-`))).toBe(true);
+    expect(first.items.reduce((sum, b) => sum + b.sizeBytes, 0)).toBe(used.storageUsedBytes);
+    expect((await list(used.id)).items).toEqual(first.items);
+    expect((await list(empty.id)).items).toEqual([]);
+    const again = await createApp();
+    const viaOther = (await call(again, { method: 'GET', url: `/api/buckets?tenantId=${used.id}&limit=200`, cookie: await login(again, 'provider_admin') })).json as typeof first;
+    expect(viaOther.items.map((b) => [b.name, b.sizeBytes])).toEqual(first.items.map((b) => [b.name, b.sizeBytes]));
+    await again.close();
+  });
+
   it('TECH-3: bucket errors', async () => {
     const tenantAdmin = await login(app, 'tenant_admin');
     const create = (name: string) => call(app, { method: 'POST', url: '/api/buckets', cookie: tenantAdmin, body: { name } });

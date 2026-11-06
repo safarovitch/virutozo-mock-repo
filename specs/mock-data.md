@@ -74,6 +74,7 @@ The remaining tenants have `resellerId: null` (direct customers of the provider)
 
 - Names like `acme-assets`, `acme-backups`, `acme-logs-2026`; one empty bucket `acme-scratch` (deletable); `acme-backups` holds objects (used for BUCKET_NOT_EMPTY).
 - Total usage for `t_acme`: about 82% of its storage quota, so the warning state is visible by default.
+- Buckets of other tenants are generated lazily but deterministically from (`MOCK_SEED`, `tenantId`) the first time they're listed (D8-04): 1–8 buckets named `<tenant-name>-<word>` whose sizes add up to the tenant's `storageUsedBytes`; a tenant with nothing used has none. Tests never reference them by name.
 
 ## 7. Task runner and events
 
@@ -289,6 +290,19 @@ Shared keys live in `libs/messages`; area keys in `apps/<area>/src/messages/en.t
 | `storage.bucketNameIp` | Bucket names can't look like IP addresses. | AC-STO-2.2 | `draft` |
 | `storage.toast.created` / `deleted` | Bucket {name} created. / Bucket {name} deleted. | SPEC-STO-2 | `draft` |
 | `storage.chooseTenant` | Choose a tenant to see its buckets. | SPEC-STO-3 | `draft` |
+| `common.tenant` | Tenant | SPEC-CMP-4, SPEC-STO-3 picker label, D8-06 | `draft` |
+| `tenantPicker.placeholder` / `noResults` | Search tenants / No tenants match. | SPEC-CMP-4, SPEC-STO-3, D8-06 | `draft` |
+| `tenantStatus.openTenant` | Open tenant | SPEC-CMP-4 admin banner, D8-09 | `draft` |
+| `storage.title` | Buckets | SPEC-STO-1 table label | `draft` |
+| `storage.usageTitle` / `storage.usage` | Storage usage / {used} of {quota} | SPEC-STO-1, D8-10 | `draft` |
+| `storage.empty` | No buckets yet. | SPEC-STO-1, D8-11 | `draft` |
+| `storage.loadMore` | Load more | SPEC-STO-1, D8-11 | `draft` |
+| `storage.columns.name` / `size` / `objects` / `versioning` / `created` | Name / Size / Objects / Versioning / Created | SPEC-STO-1, D8-11 | `draft` |
+| `storage.versioning.on` / `off` | On / Off | SPEC-STO-1, D8-11 | `draft` |
+| `storage.fields.name` / `versioning` | Name / Versioning | SPEC-STO-2, D8-13 | `draft` |
+| `storage.create.title` / `confirm` | Create bucket / Create bucket | SPEC-STO-2, D8-13 | `draft` |
+| `storage.delete.title` / `body` / `confirm` | Delete {name}? / This can't be undone. / Delete bucket | SPEC-STO-2, D8-14 | `draft` |
+| `menu.deleteBucket` / `storage.deleteFor` | Delete / Delete {name} (accessible name) | SPEC-STO-2, D8-19, A8-04 | `draft` |
 | `rbac.disabledTooltip` | You don't have permission to {action}. | RBAC-4, AC-TEN-4.4 | `accepted` |
 | `actions.createTenant` | create tenants | RBAC-4 | `accepted` |
 | `actions.suspendTenant` | suspend tenants | AC-TEN-4.4 | `accepted` |

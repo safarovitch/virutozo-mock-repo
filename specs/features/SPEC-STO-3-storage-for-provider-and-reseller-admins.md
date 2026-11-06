@@ -22,6 +22,6 @@ Shared rules: [mf-contract](../shared/mf-contract.md) · [realtime](../shared/re
 
 | ID | Criterion | Status |
 |---|---|---|
-| **AC-STO-3.1** | A provider_admin picking a tenant in Storage sees its buckets and usage card, without create/delete actions. | `planned` |
-| **AC-STO-3.2** | A reseller_admin picking one of their tenants sees its buckets and usage card, read-only. | `planned` |
-| **AC-STO-3.3** | A foreign `tenantId` in `/storage?tenantId=` shows `errors.NOT_FOUND` "This item no longer exists." | `planned` |
+| **AC-STO-3.1** | A provider_admin picking a tenant in Storage sees its buckets and usage card, without create/delete actions. | `done` |
+| **AC-STO-3.2** | A reseller_admin picking one of their tenants sees its buckets and usage card, read-only. | `done` |
+| **AC-STO-3.3** | A foreign `tenantId` in `/storage?tenantId=` shows `errors.NOT_FOUND` "This item no longer exists." | `done` |

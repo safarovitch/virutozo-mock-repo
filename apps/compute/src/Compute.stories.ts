@@ -5,7 +5,7 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import { Permission } from '@nimbus/api-client/model';
 import { createRootBus, type MountedRemote, type RemoteContext, type SessionSnapshot } from '@nimbus/mf-contract';
 import { mount } from './mount';
-import { createFakeApi, makeVms, task, type FakeApiOptions } from './testing/fake-api';
+import { ACME as ACME_TENANT, createFakeApi, makeVms, task, type FakeApiOptions } from './testing/fake-api';
 
 const ACME = { id: 't_acme', displayName: 'Acme Corporation', planName: 'Business', status: 'active' } as const;
 const user = { id: 'u_tadmin', name: 'Tom Admin', email: 'tom@acme.test' };
@@ -13,6 +13,7 @@ const TENANT_ADMIN: SessionSnapshot = { user, role: 'tenant_admin', tenant: ACME
 const VIEWER: SessionSnapshot = { ...TENANT_ADMIN, role: 'tenant_viewer', permissions: [Permission['vm:read'], Permission['task:read']] };
 const SUSPENDED: SessionSnapshot = { ...TENANT_ADMIN, tenant: { ...ACME, status: 'suspended' } };
 const PROVIDER: SessionSnapshot = { user, role: 'provider_admin', tenant: null, permissions: [Permission['tenant:read'], Permission['vm:read'], Permission['vm:operate']] };
+const RESELLER: SessionSnapshot = { user, role: 'reseller_admin', tenant: null, permissions: [Permission['tenant:read'], Permission['vm:read']] };
 const NO_ACCESS: SessionSnapshot = { ...TENANT_ADMIN, permissions: [Permission['bucket:read']] };
 
 const busy = makeVms().map((vm, i) => (i < 3 ? { ...vm, status: 'rebooting' as const, activeTaskId: `task_${i}` } : vm));
@@ -65,3 +66,7 @@ export const DrawerWithTask = story('DrawerWithTask', { path: '/vm_01', api: { v
 export const DrawerLoading = story('DrawerLoading', { path: '/vm_01', api: { hang: ['listVms', 'getVm'] } });
 export const DrawerNotFound = story('DrawerNotFound', { path: '/vm_99' });
 export const DrawerError = story('DrawerError', { path: '/vm_01', api: { hang: ['listVms'], fail: { getVm: { status: 500, code: 'INTERNAL' } } } });
+export const AdminReseller = story('AdminReseller', { session: RESELLER, path: '/?tenantId=t_acme' });
+export const AdminSuspendedTenant = story('AdminSuspendedTenant', { session: PROVIDER, path: '/?tenantId=t_acme', api: { tenants: [{ ...ACME_TENANT, status: 'suspended' }] } });
+export const AdminForeignTenant = story('AdminForeignTenant', { session: RESELLER, path: '/?tenantId=t_foreign' });
+export const AdminPickerError = story('AdminPickerError', { session: PROVIDER, api: { fail: { listTenants: { status: 500, code: 'INTERNAL' } } } });

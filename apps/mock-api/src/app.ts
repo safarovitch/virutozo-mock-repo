@@ -356,8 +356,8 @@ export async function buildMockApi(config: MockApiConfig) {
     const t = scopedTenant(userOf(req), q.tenantId, reply);
     if (!t) return;
     const needle = q.q?.toLowerCase();
-    const items = [...db.buckets.values()]
-      .filter((b) => b.tenantId === t.id && (!needle || b.name.includes(needle)))
+    const items = db.bucketsOf(t.id)
+      .filter((b) => !needle || b.name.includes(needle))
       .sort((a, b) => a.name.localeCompare(b.name));
     return paginate(items, q.limit, q.cursor, reply);
   });
@@ -367,6 +367,7 @@ export async function buildMockApi(config: MockApiConfig) {
     if (!body) return;
     const t = db.tenants.get(userOf(req).tenantId ?? '');
     if (!t) return sendProblem(reply, 403, 'FORBIDDEN');
+    db.bucketsOf(t.id); // generated names exist before the uniqueness check (D8-04)
     if (body.name.includes('..') || /^\d{1,3}(\.\d{1,3}){3}$/.test(body.name))
       return sendProblem(reply, 422, 'VALIDATION_FAILED', { errors: [{ field: 'name', message: 'Invalid bucket name' }] });
     if (t.status === 'suspended') return sendProblem(reply, 409, 'TENANT_SUSPENDED');

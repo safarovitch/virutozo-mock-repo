@@ -18,7 +18,7 @@ Shared rules: [mf-contract](../shared/mf-contract.md) · [realtime](../shared/re
 
 | ID | Criterion | Status |
 |---|---|---|
-| **AC-STO-1.1** | Usage at 85% shows a warning style and text `storage.usagePercent` "85% of quota used" (not colour alone). | `planned` |
-| **AC-STO-1.2** | Sizes are formatted with `formatBytes` from `libs/format` (SPEC.md §9): binary units, one decimal place, trailing `.0` dropped, e.g. "100 GiB", "1.5 GiB", "0 B". | `planned` |
-| **AC-STO-1.3** | Empty state offers *Create bucket* only with `bucket:create`. | `planned` |
-| **AC-STO-1.4** | Creating or deleting a bucket updates the usage card and the bucket list from events. | `planned` |
+| **AC-STO-1.1** | Usage at 85% shows a warning style and text `storage.usagePercent` "85% of quota used" (not colour alone). | `done` |
+| **AC-STO-1.2** | Sizes are formatted with `formatBytes` from `libs/format` (SPEC.md §9): binary units, one decimal place, trailing `.0` dropped, e.g. "100 GiB", "1.5 GiB", "0 B". | `done` |
+| **AC-STO-1.3** | Empty state offers *Create bucket* only with `bucket:create`. | `done` |
+| **AC-STO-1.4** | Creating or deleting a bucket updates the usage card and the bucket list from events. | `done` |

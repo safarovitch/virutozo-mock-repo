@@ -7,7 +7,7 @@ import type { Vm } from '@nimbus/api-client/model';
 import { Permission } from '@nimbus/api-client/model';
 import { testSession } from '@nimbus/test-utils';
 import { ACME, createFakeApi, makeVms, task } from './testing/fake-api';
-import { ACME_SUMMARY, TENANT_VIEWER, adminSession, renderArea, tenantSession, type Rendered } from './testing/render';
+import { ACME_SUMMARY, TENANT_VIEWER, adminSession, renderArea, resellerSession, tenantSession, type Rendered } from './testing/render';
 
 let current: Rendered | undefined;
 const render = (...args: Parameters<typeof renderArea>) => (current = renderArea(...args));
@@ -272,6 +272,91 @@ describe('SPEC-CMP-4 admin plumbing (D6-01)', () => {
     expect(r.history).toEqual([{ to: '/compute', replace: true }]);
     expect(await rowOf('web-01')).toBeTruthy();
     expect(r.api.requests.every((q) => !q.url.searchParams.has('tenantId'))).toBe(true);
+  });
+});
+
+describe('SPEC-CMP-4 tenant picker and suspended tenants', () => {
+  const BETA = { ...ACME, id: 't_beta', name: 'beta', displayName: 'Beta Ltd', status: 'suspended' as const, vmCount: 3 };
+  const twoTenants = (acme = ACME) => createFakeApi({ tenants: [acme, BETA], vms: [...makeVms(), ...makeVms(3, 't_beta').map((vm) => ({ ...vm, id: `${vm.id}_b` }))] });
+  const picker = () => screen.findByRole('combobox', { name: 'Tenant' });
+
+  it('AC-CMP-4.1: a provider_admin sees the picker and the empty state; picking acme pushes ?tenantId=t_acme and lists 40 VMs', async () => {
+    const r = render('/', { session: adminSession(), api: twoTenants() });
+    await userEvent.click(await picker());
+    expect(await screen.findByRole('heading', { name: 'Choose a tenant to see its virtual machines.' })).toBeTruthy();
+    expect(r.api.count('/api/vms')).toBe(0);
+    await userEvent.type(await picker(), 'acme');
+    await userEvent.click(await screen.findByRole('option', { name: /Acme Corporation/ }));
+    expect(r.history.at(-1)).toEqual({ to: '/compute?tenantId=t_acme', replace: false });
+    await rowOf('web-01');
+    expect(within(await table()).getAllByRole('row')).toHaveLength(41);
+    await waitFor(async () => expect(((await picker()) as HTMLInputElement).value).toBe('Acme Corporation'));
+    expect(screen.getByText('Acting on tenant Acme Corporation')).toBeTruthy();
+    expect(r.api.requests.find((q) => q.url.pathname === '/api/tenants')?.url.searchParams.get('limit')).toBe('20');
+  });
+
+  it('AC-CMP-4.1: a non-active tenant shows its status in the picker; picking another tenant closes the drawer', async () => {
+    const r = render('/vm_01?tenantId=t_acme', { session: adminSession(), api: twoTenants() });
+    await screen.findByRole('heading', { name: 'web-01' });
+    await userEvent.click(await picker());
+    const beta = await screen.findByRole('option', { name: /Beta Ltd/ });
+    expect(beta.textContent).toContain('Suspended');
+    await userEvent.click(beta);
+    expect(r.history.at(-1)).toEqual({ to: '/compute?tenantId=t_beta', replace: false });
+  });
+
+  it('AC-CMP-4.2: a reseller_admin sees their tenant\'s VMs without action buttons or "Acting on"', async () => {
+    render('/?tenantId=t_acme', { session: resellerSession() });
+    const row = await rowOf('web-01');
+    expect(within(row).queryByRole('button')).toBeNull();
+    expect(within(await table()).queryByRole('columnheader', { name: 'Actions' })).toBeNull();
+    await waitFor(async () => expect(((await picker()) as HTMLInputElement).value).toBe('Acme Corporation'));
+    expect(screen.queryByText(/Acting on tenant/)).toBeNull();
+  });
+
+  it('AC-CMP-4.2: a foreign tenantId shows errors.NOT_FOUND without Retry, and the picker stays usable and empty', async () => {
+    const r = render('/?tenantId=t_foreign', { session: resellerSession() });
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('This item no longer exists.');
+    expect(within(alert).queryByRole('button', { name: 'Retry' })).toBeNull();
+    expect(((await picker()) as HTMLInputElement).value).toBe('');
+    expect(r.history).toEqual([]); // the URL stays as the user asked (D8-08)
+  });
+
+  it('AC-CMP-4.4: a suspended picked tenant shows the admin banner and every VM action is disabled with suspendedTooltip', async () => {
+    const r = render('/?tenantId=t_acme', { session: adminSession(), api: twoTenants({ ...ACME, status: 'suspended' }) });
+    const banner = await screen.findByText('Acme Corporation is suspended. Resume it to make changes.');
+    expect(banner.closest('[role="status"]')).toBeTruthy();
+    const link = screen.getByRole('link', { name: 'Open tenant' });
+    await userEvent.click(link);
+    expect(r.history.at(-1)).toEqual({ to: '/tenants/t_acme', replace: false });
+    const row = await rowOf('web-01');
+    for (const name of ['Start', 'Stop', 'Reboot']) expect(description(within(row).getByRole('button', { name }))).toBe('Changes are disabled while this tenant is suspended.');
+    await userEvent.click(within(row).getByRole('button', { name: 'Reboot' }));
+    expect(r.api.count('/api/vms/vm_01/actions', 'POST')).toBe(0);
+  });
+
+  it('AC-CMP-4.5: when the tenant is resumed elsewhere, tenant.updated removes the banner and enables actions without a request', async () => {
+    const r = render('/?tenantId=t_acme', { session: adminSession(), api: twoTenants({ ...ACME, status: 'suspended' }) });
+    await screen.findByText('Acme Corporation is suspended. Resume it to make changes.');
+    const before = r.api.requests.length;
+    r.remote.fake.emit('server:tenant.updated', { tenant: { id: 't_acme', status: 'active' } });
+    await waitFor(() => expect(screen.queryByText(/is suspended/)).toBeNull());
+    expect(description(within(await rowOf('web-01')).getByRole('button', { name: 'Reboot' }))).toBe('');
+    expect(r.api.requests.length).toBe(before);
+  });
+
+  it('AC-CMP-4.4: a 409 TENANT_SUSPENDED from a stale view shows errors.TENANT_SUSPENDED and refetches the tenant', async () => {
+    const api = twoTenants();
+    const r = render('/?tenantId=t_acme', { session: adminSession(), api });
+    await userEvent.click(within(await rowOf('web-01')).getByRole('button', { name: 'Reboot' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Reboot web-01 on tenant Acme Corporation?' });
+    Object.assign(api.tenants[0] as object, { status: 'suspended' }); // suspended in another tab, no event yet
+    const tenantCalls = r.api.count('/api/tenants/t_acme');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Reboot' }));
+    await waitFor(() => expect(toasts(r)).toContainEqual(expect.objectContaining({ kind: 'error', message: 'This tenant is suspended, so changes are disabled.' })));
+    await waitFor(() => expect(r.api.count('/api/tenants/t_acme')).toBe(tenantCalls + 1));
+    expect(await screen.findByText('Acme Corporation is suspended. Resume it to make changes.')).toBeTruthy();
   });
 });
 

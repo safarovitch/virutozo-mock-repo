@@ -65,3 +65,26 @@ test('AC-CMP-2.5: Stop asks for confirmation, and Cancel changes nothing', async
   await expect(dialog).toBeHidden();
   await expect(row(page, 'web-01')).toContainText('Running');
 });
+
+test('AC-CMP-4.1: a provider_admin sees the picker and the empty state; picking acme lists its 40 VMs', async ({ page }) => {
+  await signIn(page, 'provider_admin');
+  await page.goto('/compute');
+  await expect(page.getByRole('heading', { name: 'Choose a tenant to see its virtual machines.' })).toBeVisible();
+  await page.getByRole('combobox', { name: 'Tenant' }).fill('acme');
+  await page.getByRole('option', { name: /Acme Corporation/ }).click();
+  await expect(page).toHaveURL(/\/compute\?tenantId=t_acme$/);
+  await expect(page.getByRole('table', { name: 'Virtual machines' }).getByRole('row')).toHaveCount(41);
+  await expect(page.getByText('Acting on tenant Acme Corporation')).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Tenant' })).toHaveValue('Acme Corporation');
+});
+
+test('AC-CMP-4.2: a reseller_admin sees acme\'s VMs without action buttons; a foreign tenantId shows errors.NOT_FOUND', async ({ page }) => {
+  await signIn(page, 'reseller_admin');
+  await page.goto('/compute?tenantId=t_acme');
+  const table = page.getByRole('table', { name: 'Virtual machines' });
+  await expect(table.getByRole('rowheader', { name: 'web-01', exact: true })).toBeVisible();
+  await expect(table.getByRole('button')).toHaveCount(0);
+  await expect(page.getByText(/Acting on tenant/)).toHaveCount(0);
+  await page.goto('/compute?tenantId=t_zzzzz');
+  await expect(page.getByRole('alert').filter({ hasText: 'This item no longer exists.' })).toBeVisible();
+});

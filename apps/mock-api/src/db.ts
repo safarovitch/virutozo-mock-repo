@@ -48,6 +48,7 @@ const VM_NAMES = [
   ...Array.from({ length: 20 }, (_, i) => `worker-${String(i + 1).padStart(2, '0')}`),
   ...Array.from({ length: 4 }, (_, i) => `cache-${String(i + 1).padStart(2, '0')}`),
 ];
+const BUCKET_WORDS = ['assets', 'backups', 'logs', 'media', 'reports', 'exports', 'uploads', 'archive', 'static', 'data', 'models', 'invoices'];
 const ACME_BUCKETS: Array<[string, number, number]> = [
   // name, size GiB, objects. Sum 205 GiB = 82% of 250 GiB (D2-05). acme-scratch is empty; acme-backups holds objects.
   ['acme-assets', 1, 1200], ['acme-backups', 80, 5400], ['acme-logs-2026', 9, 88000], ['acme-scratch', 0, 0],
@@ -61,6 +62,8 @@ export class Db {
   readonly tenants = new Map<string, Tenant>();
   readonly tenantOrder: string[] = [];
   readonly buckets = new Map<string, Bucket>();
+  /** Tenants whose buckets exist in `buckets` (acme from the seed, others once listed, D8-04). */
+  private readonly bucketTenants = new Set<string>(['t_acme']);
   readonly tasks = new Map<string, Task>();
   readonly vitals: Array<VitalRecord & { receivedAt: number }> = [];
   private readonly vms = new Map<string, Vm>();
@@ -176,6 +179,35 @@ export class Db {
         sizeBytes: gib * GIB, objectCount: objects, versioning: i % 3 === 0,
       });
     }
+  }
+
+  /**
+   * Buckets of other tenants are generated lazily but deterministically from (seed, tenantId), like their
+   * VMs (D8-04): 1–8 buckets whose sizes add up to the tenant's usage; none when nothing is used.
+   */
+  bucketsOf(tenantId: string): Bucket[] {
+    if (!this.bucketTenants.has(tenantId)) {
+      this.bucketTenants.add(tenantId);
+      const tenant = this.tenants.get(tenantId);
+      if (tenant && tenant.storageUsedBytes > 0) {
+        const rng = createRng(this.seed ^ hash(`buckets:${tenantId}`));
+        const words = shuffle(rng, [...BUCKET_WORDS]).slice(0, int(rng, 1, 8));
+        const weights = words.map(() => 0.2 + rng());
+        const total = weights.reduce((a, b) => a + b, 0);
+        let left = tenant.storageUsedBytes;
+        words.forEach((word, i) => {
+          const sizeBytes = i === words.length - 1 ? left : Math.floor((tenant.storageUsedBytes * (weights[i] as number)) / total);
+          left -= sizeBytes;
+          const name = `${tenant.name}-${word}`.slice(0, 63);
+          if (this.buckets.has(name)) return;
+          this.buckets.set(name, {
+            name, tenantId, createdAt: iso(this.seedTime - int(rng, 1, 600) * DAY),
+            sizeBytes, objectCount: sizeBytes === 0 ? 0 : int(rng, 1, 50_000), versioning: rng() < 0.3,
+          });
+        });
+      }
+    }
+    return [...this.buckets.values()].filter((b) => b.tenantId === tenantId);
   }
 
   // ── Tasks (seeded relative to the seed time, F5 / E3) ──

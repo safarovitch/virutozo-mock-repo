@@ -23,5 +23,5 @@ export default defineConfig(({ command, mode }) => ({
       dts: false,
     }),
   ],
-  test: { passWithNoTests: true },
+  test: { include: ['src/**/*.test.ts', 'src/**/*.test.tsx'], environment: 'node', setupFiles: ['src/testing/setup.ts'] }, // component tests opt into jsdom per file
 }));

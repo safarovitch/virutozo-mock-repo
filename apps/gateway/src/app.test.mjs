@@ -53,6 +53,16 @@ describe('parseConfig', () => {
     expect(parseConfig({ NIMBUS_MODE: 'demo' }).testEndpoints).toBe(false);
   });
 
+  it('BUG-5: e2e and dev serve the e2e builds (dist-e2e); demo serves the production builds (dist)', () => {
+    const e2e = parseConfig({ NIMBUS_MODE: 'e2e' });
+    expect(e2e.shellDist).toMatch(/apps\/shell\/dist-e2e$/);
+    expect(e2e.remoteDists.storage).toMatch(/apps\/storage\/dist-e2e$/);
+    expect(parseConfig({ NIMBUS_MODE: 'dev' }).shellDist).toMatch(/dist-e2e$/);
+    const demo = parseConfig({ NIMBUS_MODE: 'demo' });
+    expect(demo.shellDist).toMatch(/apps\/shell\/dist$/);
+    expect(demo.remoteDists.compute).toMatch(/apps\/compute\/dist$/);
+  });
+
   it('TECH-1: defaults to port 8080, and TLS=1 needs a certificate and key', () => {
     expect(parseConfig({ NIMBUS_MODE: 'e2e' }).port).toBe(8080);
     expect(() => parseConfig({ NIMBUS_MODE: 'e2e', TLS: '1' })).toThrow(/TLS_CERT/);

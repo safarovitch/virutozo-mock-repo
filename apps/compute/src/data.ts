@@ -4,8 +4,8 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 import { QueryClient, useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData } from '@tanstack/vue-query';
 import { ApiError, messageFor } from '@nimbus/api-client';
-import { getGetTaskQueryKey, getGetTenantQueryKey, getGetVmQueryKey, getListTasksQueryKey, getListVmsQueryKey, getTask, getTenant, getVm, listTasks, listVms, runVmAction } from '@nimbus/api-client/vue';
-import type { ListVmsParams, Problem, Task, TaskPage, Tenant, Vm, VmAction, VmPage, VmStatus } from '@nimbus/api-client/model';
+import { getGetTaskQueryKey, getGetTenantQueryKey, getGetVmQueryKey, getListTasksQueryKey, getListTenantsQueryKey, getListVmsQueryKey, getTask, getTenant, getVm, listTasks, listTenants, listVms, runVmAction } from '@nimbus/api-client/vue';
+import type { ListVmsParams, Problem, Task, TaskPage, Tenant, TenantPage, TenantStatus, Vm, VmAction, VmPage, VmStatus } from '@nimbus/api-client/model';
 import type { BusEvents, ScopedBus } from '@nimbus/mf-contract';
 import { mergeTask } from '@nimbus/realtime';
 import { t } from './messages/en';
@@ -86,7 +86,22 @@ export function useRecentTasks(vmId: MaybeRefOrGetter<string | undefined>) {
   });
 }
 
-/** The tenant's display name for an admin's confirmation (AC-CMP-4.3), when the session may read tenants. */
+/** Options for the admin tenant picker (D8-06): the first 20 by name, or 20 matches for `q`. */
+export const PICKER_LIMIT = 20;
+export function useTenantSearch(query: MaybeRefOrGetter<string | undefined>) {
+  const params = computed(() => ({ ...(toValue(query) ? { q: toValue(query) } : {}), sort: 'name' as const, limit: PICKER_LIMIT }));
+  return useQuery({
+    queryKey: computed(() => getListTenantsQueryKey(params.value)),
+    queryFn: async ({ signal }) => (await listTenants(params.value, { signal })).data as TenantPage,
+    enabled: computed(() => toValue(query) !== undefined), // only once the picker opens
+    staleTime: 30_000,
+  });
+}
+
+/**
+ * The picked tenant (SPEC-CMP-4): its name for the picker and confirmations (AC-CMP-4.3) and its status for
+ * the suspended banner (AC-CMP-4.4). `server:tenant.updated` keeps the status current (D8-09).
+ */
 export function useTenant(tenantId: MaybeRefOrGetter<string | undefined>, enabled: MaybeRefOrGetter<boolean>) {
   return useQuery({
     queryKey: computed(() => getGetTenantQueryKey(toValue(tenantId) ?? '')),
@@ -120,6 +135,10 @@ function patchData(data: unknown, patches: ReadonlyMap<string, VmPatch>): unknow
 export function patchVms(queryClient: QueryClient, patches: ReadonlyMap<string, VmPatch>): void {
   if (patches.size === 0) return;
   queryClient.setQueriesData({ queryKey: vmsKey }, (data: unknown) => patchData(data, patches));
+}
+
+export function patchTenantStatus(queryClient: QueryClient, id: string, status: TenantStatus): void {
+  queryClient.setQueryData<Tenant>(getGetTenantQueryKey(id), (tenant) => (tenant && tenant.status !== status ? { ...tenant, status } : tenant));
 }
 
 export const patchVm = (queryClient: QueryClient, patch: VmPatch) => patchVms(queryClient, new Map([[patch.id, patch]]));
@@ -191,6 +210,8 @@ export function useVmAction(events: ScopedBus, onStarted: (task: Task) => void) 
     },
     onError: (error, { vm }, context) => {
       if (context) patchVm(queryClient, { id: vm.id, status: context.previous });
+      // A stale view of a tenant that is now suspended: fetch its status so the banner shows (D8-09).
+      if (problemOf(error)?.code === 'TENANT_SUSPENDED') void queryClient.invalidateQueries({ queryKey: getGetTenantQueryKey(vm.tenantId) });
       events.publish('toast:show', { kind: 'error', message: errorMessage(error), resource: { type: 'vm', id: vm.id } });
       void queryClient
         .fetchQuery({ queryKey: getGetVmQueryKey(vm.id), queryFn: async () => (await getVm(vm.id)).data as Vm, staleTime: 0 })
@@ -246,6 +267,8 @@ export function subscribeComputeEvents(events: ScopedBus, queryClient: QueryClie
       schedule();
       if (task.status === 'succeeded' || task.status === 'failed') handlers.onTaskFinished?.(task);
     }),
+    // The picked tenant's status (D8-09, RT-12): patched in place, no request.
+    events.subscribe('server:tenant.updated', ({ tenant }) => patchTenantStatus(queryClient, tenant.id, tenant.status)),
     events.subscribe('realtime:reconnected', () => void queryClient.invalidateQueries()), // only this area's client
   ];
   return () => {

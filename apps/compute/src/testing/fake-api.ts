@@ -46,7 +46,7 @@ export const ACME: Tenant = {
   vmQuota: 50,
 };
 
-type Op = 'listVms' | 'getVm' | 'runVmAction' | 'getTask' | 'listTasks' | 'getTenant';
+type Op = 'listVms' | 'getVm' | 'runVmAction' | 'getTask' | 'listTasks' | 'getTenant' | 'listTenants';
 
 export interface FakeApiOptions {
   vms?: Vm[];
@@ -71,6 +71,8 @@ export interface FakeApi {
   count(path: string, method?: string): number;
   vms: Vm[];
   tasks: Task[];
+  /** Change a tenant here to simulate a change made elsewhere. */
+  tenants: Tenant[];
 }
 
 const json = (status: number, body: unknown) =>
@@ -97,7 +99,7 @@ export const task = (id: string, patch: Partial<Task> = {}): Task => ({
 export function createFakeApi(options: FakeApiOptions = {}): FakeApi {
   const vms = (options.vms ?? makeVms()).map((vm) => ({ ...vm }));
   const tasks = (options.tasks ?? []).map((t) => ({ ...t }));
-  const tenants = options.tenants ?? [ACME];
+  const tenants = (options.tenants ?? [ACME]).map((t) => ({ ...t }));
   const requests: FakeRequest[] = [];
   let nextTask = 1;
 
@@ -150,6 +152,15 @@ export function createFakeApi(options: FakeApiOptions = {}): FakeApi {
         const items = tasks.filter((t) => !id || t.resource.id === id);
         return json(200, { items, nextCursor: null, total: items.length });
       });
+    if (method === 'GET' && path === '/tenants')
+      return route('listTenants', () => {
+        const q = (url.searchParams.get('q') ?? '').toLowerCase();
+        const items = tenants
+          .filter((t) => !q || t.name.includes(q) || t.displayName.toLowerCase().includes(q))
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .slice(0, Number(url.searchParams.get('limit') ?? 50));
+        return json(200, { items, nextCursor: null, total: items.length });
+      });
     const tenant = path.match(/^\/tenants\/([^/]+)$/);
     if (tenant && method === 'GET')
       return route('getTenant', () => {
@@ -174,5 +185,6 @@ export function createFakeApi(options: FakeApiOptions = {}): FakeApi {
     count: (path, method = 'GET') => requests.filter((r) => r.method === method && r.url.pathname === path).length,
     vms,
     tasks,
+    tenants,
   };
 }

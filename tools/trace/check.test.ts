@@ -110,6 +110,18 @@ describe('trace:check', () => {
     expect(collectTests(dir).map((t) => t.title).sort()).toEqual(['TECH-6: plays', 'TECH-7: blocks']);
   });
 
+  it('BUG-4: a regex literal with a quote in it does not hide the titles after it', () => {
+    const dir = repo({
+      'apps/x/a.test.tsx': [
+        "it('AC-TEN-1.1: first', () => expect(text).toMatch(/can't/));",
+        "it('AC-TEN-1.2: second', () => expect(a / b).toBe(c / d));",
+        'it(`AC-TEN-1.3: third`, () => expect(x).toMatch(/["`]/i));',
+        "it('AC-TEN-1.4: fourth', () => <p>{a}</p>);",
+      ].join('\n'),
+    });
+    expect(collectTests(dir).map((t) => t.id)).toEqual(['AC-TEN-1.1', 'AC-TEN-1.2', 'AC-TEN-1.3', 'AC-TEN-1.4']);
+  });
+
   it('TECH-5: helpers parse leading IDs, Implements lines and code positions', () => {
     expect(leadingId('AC-TEN-1.2: typing')).toBe('AC-TEN-1.2');
     expect(leadingId('NFR-A11Y-1: no violations')).toBe('NFR-A11Y-1');

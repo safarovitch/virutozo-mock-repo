@@ -3,7 +3,8 @@
 import '@nimbus/design-tokens/components.css';
 export { default as Button } from './NuiButton.vue';
 export { default as StatusBadge } from './NuiStatusBadge.vue';
-export type { StatusTone } from './types';
+export type { ComboboxOption, StatusTone } from './types';
+export { default as Combobox } from './NuiCombobox.vue';
 export { default as ProgressBar } from './NuiProgressBar.vue';
 export { default as EmptyState } from './NuiEmptyState.vue';
 export { default as ErrorState } from './NuiErrorState.vue';

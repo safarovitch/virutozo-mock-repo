@@ -16,6 +16,7 @@ import { createShellQueryClient } from './query-client';
 import { registerFromManifest } from './remotes';
 import { createSessionStore } from './session';
 import { createSessionBus } from './bus';
+import { CHANNEL_NAME, createTabChannel } from './tabs';
 
 const root = createRoot(document.getElementById('root') as HTMLElement);
 
@@ -60,6 +61,11 @@ function Shell({ manifest }: { manifest: Manifest }) {
       },
       queryClient,
       location: () => window.location,
+      // SPEC-SHL-7: every tab of this origin; each keeps its own WebSocket (RT-1).
+      ...(typeof BroadcastChannel === 'function' ? { tabs: createTabChannel(new BroadcastChannel(CHANNEL_NAME)) } : {}),
+      origin: window.location.origin,
+      reload: () => window.location.reload(),
+      load: (url) => window.location.assign(url),
     });
     return { store, queryClient };
   });

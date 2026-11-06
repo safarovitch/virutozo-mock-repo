@@ -34,22 +34,32 @@ export interface ActionState {
 }
 
 /**
- * The action rules (SPEC-CMP-2, SPEC-SHL-8, D6-03): a suspended tenant blocks everything, then a running
- * operation (AC-CMP-2.4), then the `error` status; otherwise each action is valid from one status.
+ * The action rules (SPEC-CMP-2, SPEC-SHL-8, SPEC-CMP-4, D6-03): a suspended tenant blocks everything
+ * (`blockedReason`), then a running operation (AC-CMP-2.4), then the `error` status; otherwise each
+ * action is valid from one status.
  */
-export function actionState(vm: Vm, action: VmAction, tenantSuspended: boolean): ActionState {
-  if (tenantSuspended) return { disabled: false, reason: t('tenantStatus.suspendedBanner') };
+export function actionState(vm: Vm, action: VmAction, blockedReason: string | undefined): ActionState {
+  if (blockedReason) return { disabled: false, reason: blockedReason };
   if (vm.activeTaskId || isTransitional(vm.status)) return { disabled: false, reason: t('compute.operationInProgress') };
   if (vm.status === 'error') return { disabled: false, reason: t('compute.vmInError') };
   return { disabled: vm.status !== VALID_FROM[action] };
 }
 
+/** Whether the tenant an admin picked is suspended (SPEC-CMP-4); provided by ComputeArea. */
+export const PICKED_SUSPENDED_KEY: InjectionKey<ComputedRef<boolean>> = Symbol('compute-picked-suspended');
+
 /** Who may act, and on what (RBAC-4: without `vm:operate` the buttons aren't rendered). */
 export function useActionRules() {
   const ctx = useCtx();
+  const pickedSuspended = inject(PICKED_SUSPENDED_KEY, null);
   return {
     canOperate: computed(() => can(ctx.value.session, Permission['vm:operate'])),
-    tenantSuspended: computed(() => ctx.value.session.tenant?.status === 'suspended'),
+    /** Why every action is blocked: the own tenant (SPEC-SHL-8) or the picked tenant (AC-CMP-4.4) is suspended. */
+    blockedReason: computed(() => {
+      const own = ctx.value.session.tenant;
+      if (own) return own.status === 'suspended' ? t('tenantStatus.suspendedBanner') : undefined;
+      return pickedSuspended?.value ? t('tenantStatus.suspendedTooltip') : undefined;
+    }),
   };
 }
 

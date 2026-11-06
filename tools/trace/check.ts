@@ -14,7 +14,7 @@ export interface TestTitle {
   only: boolean;
 }
 
-const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', '.nx', 'coverage', 'tmp', 'storybook-static', 'test-results', 'playwright-report', 'tsp-output', 'fixtures']);
+const SKIP_DIRS = new Set(['node_modules', 'dist', 'dist-e2e', '.git', '.nx', 'coverage', 'tmp', 'storybook-static', 'test-results', 'playwright-report', 'tsp-output', 'fixtures']);
 const TEST_FILE = /\.(test|spec|perf)\.(ts|tsx|mts|mjs|js)$|\.stories\.tsx$/;
 // it('…') / test.skip("…") / xit(`…`) — the title is the first string argument.
 const CALL = /\b(xit|it|test)(?:\.(only|skip|todo|fixme|fails|concurrent))?\s*\(\s*(['"`])((?:\\.|(?!\3)[^\\])*)\3/g;
@@ -32,13 +32,39 @@ function testFiles(dir: string, repo: string): string[] {
 
 const lineOf = (text: string, index: number) => text.slice(0, index).split('\n').length;
 
+// A `/` starts a regex literal where an operand is expected: after an operator or opening bracket, at the
+// start, or after one of these keywords. After `)`, `]`, a name, a number or a string it's a division.
+const REGEX_AFTER_WORD = /\b(?:return|typeof|case|do|else|in|of|new|delete|void|throw|instanceof|yield|await)$/;
+const OPERAND_END = /[\w$)\]'"`]/;
+
+/** The end of the regex literal starting at `start` (after its flags), or -1 if there's none on this line. */
+function regexEnd(text: string, start: number): number {
+  let i = start + 1;
+  let inClass = false;
+  while (i < text.length && text[i] !== '\n') {
+    const c = text[i];
+    if (c === '\\') i++;
+    else if (c === '[') inClass = true;
+    else if (c === ']') inClass = false;
+    else if (c === '/' && !inClass) {
+      i++;
+      while (i < text.length && /[a-z]/i.test(text[i] as string)) i++;
+      return i;
+    }
+    i++;
+  }
+  return -1; // e.g. a JSX closing tag `</p>`: not a regex
+}
+
 /**
- * Marks which characters are code (not inside a string, template literal or comment), so test code
- * that a test keeps as a string fixture (e.g. the hook tests) isn't mistaken for a test.
+ * Marks which characters are code (not inside a string, template literal, regex literal or comment), so
+ * test code that a test keeps as a string fixture (e.g. the hook tests) isn't mistaken for a test, and a
+ * quote inside a regex (`/can't/`) doesn't open a string (BUG-4).
  */
 export function codeMask(text: string): Uint8Array {
   const code = new Uint8Array(text.length);
   let i = 0;
+  let last = -1; // index of the last non-space code character
   while (i < text.length) {
     const c = text[i];
     const next = text[i + 1];
@@ -47,6 +73,11 @@ export function codeMask(text: string): Uint8Array {
     } else if (c === '/' && next === '*') {
       const end = text.indexOf('*/', i + 2);
       i = end === -1 ? text.length : end + 2;
+    } else if (c === '/' && (last === -1 || !OPERAND_END.test(text[last] as string) || REGEX_AFTER_WORD.test(text.slice(Math.max(0, last - 11), last + 1))) && regexEnd(text, i) !== -1) {
+      const end = regexEnd(text, i);
+      code[i] = 1;
+      last = end - 1;
+      i = end;
     } else if (c === "'" || c === '"' || c === '`') {
       code[i] = 1; // the opening quote belongs to the code around it (a title starts there)
       i++;
@@ -57,9 +88,11 @@ export function codeMask(text: string): Uint8Array {
         else if (c === '`' && text[i] === '}' && depth > 0) depth--;
         i++;
       }
+      last = i; // the closing quote: an operand ended
       i++;
     } else {
       code[i] = 1;
+      if (!/\s/.test(c as string)) last = i;
       i++;
     }
   }

@@ -6,7 +6,7 @@ import globals from 'globals';
 
 export default tseslint.config(
   {
-    ignores: ['**/dist/**', '**/node_modules/**', '**/coverage/**', '**/tsp-output/**', '**/test-results/**', '**/playwright-report/**', '**/src/generated/**'],
+    ignores: ['**/dist/**', '**/dist-e2e/**', '**/node_modules/**', '**/coverage/**', '**/tsp-output/**', '**/test-results/**', '**/playwright-report/**', '**/src/generated/**'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

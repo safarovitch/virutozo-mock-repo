@@ -1,6 +1,6 @@
 # apps/compute — local guide
 
-**Purpose:** Vue 3 remote for the Compute area. Exposes `./mount` (ADR-0002): VM list (SPEC-CMP-1), actions (SPEC-CMP-2) and the drawer (SPEC-CMP-5) since Day 6, plus the admin `?tenantId` plumbing (D6-01); the tenant picker and admin banner come with SPEC-CMP-4 on Day 8.
+**Purpose:** Vue 3 remote for the Compute area. Exposes `./mount` (ADR-0002): VM list (SPEC-CMP-1), actions (SPEC-CMP-2) and the drawer (SPEC-CMP-5) since Day 6, and the admin view (SPEC-CMP-4): tenant picker (`TenantPicker.vue`), "Acting on tenant" and the suspended-tenant banner.
 
 **Framework and key libraries:** Vue 3.5 (`<script setup lang="ts">`), `@tanstack/vue-query` 5 with generated clients from `@nimbus/api-client/vue`, Pinia 3 for UI state only (`src/ui-store.ts`), `@nimbus/ui-kit-vue`. Vue and Vue Query are bundled here, not shared (ADR-0001 R2). Storybook 10 on port 6010.
 
@@ -19,3 +19,4 @@
 - Subscribe only through `useBusEvent` or `subscribeComputeEvents` inside setup with `onUnmounted` cleanup (RT-7, AC-SHL-6.3).
 - The app root is `RemoteBoundary.vue` (MF-6): it publishes one fatal `remote:error` and renders nothing further. Don't add `app.config.errorHandler`; that would log a second entry.
 - A component that must throw for tests throws from `setup(): () => null`; a `render()` that only throws fails lint, and `setup(): never` breaks template prop types.
+- Admins: the picked tenant's status comes from `getTenant` (patched by `server:tenant.updated`, D8-09) and reaches the buttons through `PICKED_SUSPENDED_KEY`; `useActionRules().blockedReason` is the only place that decides why every action is blocked. A 404 list (foreign `tenantId`) has no Retry (D8-08).

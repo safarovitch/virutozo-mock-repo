@@ -10,11 +10,14 @@ export const TENANT_ADMIN: Permission[] = [Permission['vm:read'], Permission['vm
 export const TENANT_VIEWER: Permission[] = [Permission['vm:read'], Permission['bucket:read'], Permission['task:read']];
 export const PROVIDER: Permission[] = [Permission['tenant:read'], Permission['vm:read'], Permission['vm:operate'], Permission['task:read']];
 
+export const RESELLER: Permission[] = [Permission['tenant:read'], Permission['vm:read'], Permission['task:read']];
+
 export const ACME_SUMMARY = { id: 't_acme', displayName: 'Acme Corporation', planName: 'Business', status: 'active' } as const;
 
 export const tenantSession = (permissions = TENANT_ADMIN, overrides: Partial<SessionSnapshot> = {}) =>
   testSession(permissions, { role: 'tenant_admin', tenant: { ...ACME_SUMMARY }, ...overrides });
 export const adminSession = (permissions = PROVIDER) => testSession(permissions, { role: 'provider_admin', tenant: null });
+export const resellerSession = () => testSession(RESELLER, { role: 'reseller_admin', tenant: null });
 
 export interface Rendered {
   remote: MountedForTest;

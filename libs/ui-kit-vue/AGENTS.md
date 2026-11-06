@@ -14,3 +14,4 @@
 - Stories use render functions (`h`), not template strings: jsdom loads Vue's runtime-only build.
 - Not an MF shared singleton: Vue stays bundled in the compute remote (ADR-0001 R2).
 - No DataTable: the VM list is a semantic `<table>` in compute (at most 200 rows per page, D6-04), see A3-02.
+- `Combobox` (`NuiCombobox.vue`) mirrors ui-kit's React `Combobox`; option badges are `{ tone, label }` instead of a node.

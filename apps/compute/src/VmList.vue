@@ -9,16 +9,18 @@ import { toPath } from './url';
 import VmActions from './VmActions.vue';
 import VmStatus from './VmStatus.vue';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   rows: Vm[];
   loading: boolean;
   error?: string;
+  /** False for a 404: Retry can't help (D8-08). */
+  retryable?: boolean;
   canOperate: boolean;
   tenantId?: string;
   other: [string, string][];
   hasMore: boolean;
   fetchingMore: boolean;
-}>();
+}>(), { error: undefined, retryable: true, tenantId: undefined });
 const emit = defineEmits<{ open: [vm: Vm]; retry: []; loadMore: [] }>();
 const ctx = useCtx();
 const MIB = 1024 * 1024;
@@ -41,6 +43,7 @@ function onNameClick(event: MouseEvent, vm: Vm) {
   <ErrorState
     v-else-if="error"
     :message="error"
+    :retry="retryable"
     @retry="emit('retry')"
   />
   <EmptyState

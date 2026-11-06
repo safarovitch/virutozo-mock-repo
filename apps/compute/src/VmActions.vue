@@ -7,7 +7,7 @@ import { ACTIONS, actionState, useActionRules, useActions } from './area';
 import { t } from './messages/en';
 
 defineProps<{ vm: Vm }>();
-const { tenantSuspended } = useActionRules();
+const { blockedReason } = useActionRules();
 const actions = useActions();
 </script>
 
@@ -21,8 +21,8 @@ const actions = useActions();
       v-for="action in ACTIONS"
       :key="action"
       :variant="action === 'stop' ? 'danger' : 'secondary'"
-      :disabled="actionState(vm, action, tenantSuspended).disabled"
-      :disabled-reason="actionState(vm, action, tenantSuspended).reason"
+      :disabled="actionState(vm, action, blockedReason).disabled"
+      :disabled-reason="actionState(vm, action, blockedReason).reason"
       @click="actions.request(vm, action)"
     >
       {{ t(`compute.actions.${action}`) }}

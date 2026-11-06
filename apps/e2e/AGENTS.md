@@ -21,4 +21,4 @@
 - `PerformanceObserver` doesn't see code run by `page.evaluate`; plant measurable work with `setTimeout` inside the page.
 - `getByLabel('Name')` also matches "Display name": pass `exact: true`. A failed task's message appears in the toast and in the task center: scope to `getByRole('region', { name: 'Notifications' })`.
 - Creating tenants changes "Showing … of 10,000 tenants": wizard submits and suspends run in `*.exclusive.spec.ts` (D7-16). Crash tests use each remote's `/__crash` route.
-- `build` and `build-e2e` share `dist`: after a production build (`check:no-test-hooks`), run `pnpm nx run-many -t build-e2e --skip-nx-cache` before `pnpm e2e`, or crash tests see production bundles (A7-13).
+- `build-e2e` writes `apps/<app>/dist-e2e` and the gateway serves it in `e2e`/`dev` mode; production builds stay in `dist` (BUG-5). Clean it with `rm -rf apps/<app>/dist-e2e` only if the guard allows it; otherwise rebuild with `--skip-nx-cache`.

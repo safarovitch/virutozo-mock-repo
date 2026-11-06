@@ -6,7 +6,7 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { Permission } from '@nimbus/api-client/model';
 import type { SessionSnapshot } from '@nimbus/mf-contract';
-import { Button, ConfirmDialog, createCanDirective, Drawer, EmptyState, ErrorState, ProgressBar, Skeleton, StatusBadge } from './index';
+import { Button, Combobox, type ComboboxOption, ConfirmDialog, createCanDirective, Drawer, EmptyState, ErrorState, ProgressBar, Skeleton, StatusBadge } from './index';
 
 const meta = { title: 'ui-kit-vue/Components' } satisfies Meta;
 export default meta;
@@ -174,5 +174,52 @@ export const VCan: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole('button', { name: 'View VMs' })).toBeVisible();
     await expect(canvas.queryByRole('button', { name: 'Reboot' })).toBeNull();
+  },
+};
+
+const TENANTS: ComboboxOption[] = [
+  { id: 't_acme', label: 'Acme Corporation', description: 'acme' },
+  { id: 't_beta', label: 'Beta Ltd', description: 'beta' },
+  { id: 't_gamma', label: 'Gamma Group', description: 'gamma', badge: { tone: 'warning', label: 'Suspended' } },
+];
+const comboboxStory = (name: string, extra: { loading?: boolean; error?: string } = {}) =>
+  defineComponent({
+    name,
+    setup() {
+      const query = ref('');
+      const chosen = ref<ComboboxOption | null>(null);
+      return () =>
+        h('div', [
+          h(Combobox, {
+            label: 'Tenant',
+            placeholder: 'Search tenants',
+            value: chosen.value?.label,
+            options: TENANTS.filter((o) => o.label.toLowerCase().includes(query.value.toLowerCase())),
+            emptyText: 'No tenants match.',
+            searchDelayMs: 0,
+            ...extra,
+            onSearch: (q: string) => (query.value = q),
+            onSelect: (o: ComboboxOption) => (chosen.value = o),
+          }),
+          h('p', `Chosen: ${chosen.value?.id ?? 'none'}`),
+        ]);
+    },
+  });
+
+export const ComboboxDefault: Story = { render: () => comboboxStory('ComboboxDefault') };
+export const ComboboxLoading: Story = { render: () => comboboxStory('ComboboxLoading', { loading: true }) };
+export const ComboboxError: Story = { render: () => comboboxStory('ComboboxError', { error: 'Something went wrong on our side. Try again.' }) };
+export const ComboboxKeyboard: Story = {
+  name: 'TECH-6: Vue combobox, type, arrow down and Enter choose a tenant',
+  tags: ['play'],
+  render: () => comboboxStory('ComboboxKeyboard'),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const input = canvas.getByRole('combobox', { name: 'Tenant' });
+    await userEvent.type(input, 'be');
+    await waitFor(() => expect(canvas.getAllByRole('option')).toHaveLength(1));
+    await userEvent.keyboard('{ArrowDown}{Enter}');
+    await expect(canvas.getByText('Chosen: t_beta')).toBeVisible();
+    await expect(input).toHaveValue('Beta Ltd');
   },
 };

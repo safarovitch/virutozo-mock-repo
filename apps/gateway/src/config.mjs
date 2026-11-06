@@ -47,6 +47,9 @@ const EnvSchema = z
 export function parseConfig(env) {
   const e = EnvSchema.parse(env);
   const tls = e.TLS === '1' ? { cert: /** @type {string} */ (e.TLS_CERT), key: /** @type {string} */ (e.TLS_KEY) } : null;
+  // BUG-5: test hooks (`/__crash`) exist only in `build-e2e` output, which has its own folder so a
+  // production build can never overwrite it. Only the public preview (demo) serves production builds.
+  const out = e.NIMBUS_MODE === 'demo' ? 'dist' : 'dist-e2e';
   return {
     mode: e.NIMBUS_MODE,
     port: e.GATEWAY_PORT ?? (tls ? 8443 : 8080),
@@ -54,8 +57,8 @@ export function parseConfig(env) {
     mockApiUrl: e.MOCK_API_URL,
     failRemotes: new Set(e.FAIL_REMOTES),
     testEndpoints: e.NIMBUS_MODE === 'dev' || e.NIMBUS_MODE === 'e2e',
-    shellDist: `${REPO}apps/shell/dist`,
-    remoteDists: Object.fromEntries(REMOTE_NAMES.map((n) => [n, `${REPO}apps/${n}/dist`])),
+    shellDist: `${REPO}apps/shell/${out}`,
+    remoteDists: Object.fromEntries(REMOTE_NAMES.map((n) => [n, `${REPO}apps/${n}/${out}`])),
     manifestPath: `${REPO}config/remotes.gateway.json`,
   };
 }

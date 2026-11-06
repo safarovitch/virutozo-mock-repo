@@ -23,10 +23,10 @@ Shared rules: [mf-contract](../shared/mf-contract.md) · [realtime](../shared/re
 
 | ID | Criterion | Status |
 |---|---|---|
-| **AC-CMP-4.1** | A provider_admin on `/compute` sees the picker and the empty state. Picking "acme" lists 40 VMs and sets `?tenantId=t_acme`. | `planned` |
-| **AC-CMP-4.2** | A reseller_admin sees their tenants' VMs without action buttons. A foreign `tenantId` shows `errors.NOT_FOUND` "This item no longer exists." | `planned` |
+| **AC-CMP-4.1** | A provider_admin on `/compute` sees the picker and the empty state. Picking "acme" lists 40 VMs and sets `?tenantId=t_acme`. | `done` |
+| **AC-CMP-4.2** | A reseller_admin sees their tenants' VMs without action buttons. A foreign `tenantId` shows `errors.NOT_FOUND` "This item no longer exists." | `done` |
 | **AC-CMP-4.3** | A provider_admin's *Stop* on a tenant's VM asks for confirmation naming the tenant. | `done` |
-| **AC-CMP-4.4** | A provider_admin with a suspended tenant picked sees the `tenantStatus.suspendedAdminBanner` banner, and every VM action is disabled with tooltip `tenantStatus.suspendedTooltip` "Changes are disabled while this tenant is suspended." | `planned` |
-| **AC-CMP-4.5** | When that tenant is resumed in another tab, the banner disappears and actions are enabled without a reload. | `planned` |
-| **AC-CMP-4.6** | `runVmAction` as provider_admin on a suspended tenant returns 409 `TENANT_SUSPENDED` (mock-api integration test). | `planned` |
+| **AC-CMP-4.4** | A provider_admin with a suspended tenant picked sees the `tenantStatus.suspendedAdminBanner` banner, and every VM action is disabled with tooltip `tenantStatus.suspendedTooltip` "Changes are disabled while this tenant is suspended." | `done` |
+| **AC-CMP-4.5** | When that tenant is resumed in another tab, the banner disappears and actions are enabled without a reload. | `done` |
+| **AC-CMP-4.6** | `runVmAction` as provider_admin on a suspended tenant returns 409 `TENANT_SUSPENDED` (mock-api integration test). | `done` |
 | **AC-CMP-4.7** | A tenant_admin opening `/compute?tenantId=t_other` sees their own VMs, and `tenantId` is removed from the URL. | `done` |

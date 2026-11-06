@@ -19,3 +19,5 @@
 - `Wizard` is uncontrolled unless you pass both `step` and `onStepChange` (Edit links, jumping back on a 409). Focus moves to the step heading on every change.
 - `Modal` stops Escape from propagating, so a dialog over another (a discard prompt) closes alone.
 - `RemoteErrorBoundary` is the root boundary of a React remote; pair it with `createRoot(el, { onCaughtError: () => {} })`.
+- `Combobox` (D8-05) is the APG combobox: focus stays in the input, `onSearch` is debounced inside; the owner passes `options`. Same markup and CSS as ui-kit-vue's `Combobox`: change both together.
+- Button text is wrapped, so text split across elements loses its spaces in the accessible name: use `aria-label` for "Delete {name}" style names.

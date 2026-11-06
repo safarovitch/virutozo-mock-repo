@@ -22,6 +22,7 @@
     },
     "build-e2e": {
       "cache": true,
+      "outputs": ["{projectRoot}/dist-e2e"],
       "dependsOn": ["^build"],
       "inputs": ["production", "^production"]
     },
