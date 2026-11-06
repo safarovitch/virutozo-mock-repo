@@ -17,3 +17,5 @@
 - No jest-dom here: Vitest's DOM matcher types exist but the matchers don't run. Assert on `textContent` / `getAttribute`; tooltips via the `description()` helper in the tests.
 - Tests and stories use `src/testing/fake-api.ts`, never the real API; mount with `renderArea()` (`src/testing/render.ts`).
 - Subscribe only through `useBusEvent` or `subscribeComputeEvents` inside setup with `onUnmounted` cleanup (RT-7, AC-SHL-6.3).
+- The app root is `RemoteBoundary.vue` (MF-6): it publishes one fatal `remote:error` and renders nothing further. Don't add `app.config.errorHandler`; that would log a second entry.
+- A component that must throw for tests throws from `setup(): () => null`; a `render()` that only throws fails lint, and `setup(): never` breaks template prop types.

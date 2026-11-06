@@ -2,8 +2,9 @@
 import { useEffect, useMemo } from 'react';
 import { MutationCache, QueryClient, keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { ApiError, messageFor } from '@nimbus/api-client';
-import type { ListTenantsParams, Plan, Problem, Task, TaskPage, Tenant, TenantPage, TenantQuotas, QuotaUpdate } from '@nimbus/api-client/model';
+import type { ListTenantsParams, Plan, Problem, Task, TaskPage, Tenant, TenantCreate, TenantCreated, TenantPage, TenantQuotas, QuotaUpdate } from '@nimbus/api-client/model';
 import {
+  createTenant,
   getGetQuotasQueryKey,
   getGetTenantQueryKey,
   getListPlansQueryKey,
@@ -14,6 +15,8 @@ import {
   listPlans,
   listTasks,
   listTenants,
+  resumeTenant,
+  suspendTenant,
   updateQuotas,
 } from '@nimbus/api-client/react';
 import type { ScopedBus } from '@nimbus/mf-contract';
@@ -159,6 +162,69 @@ export function useUpdateQuotas(tenantId: string, events: ScopedBus) {
     onSuccess: (quotas) => {
       applyQuotas(queryClient, tenantId, quotas);
       events.publish('toast:show', { kind: 'success', message: t('tenants.quotas.saved') });
+    },
+  });
+}
+
+/**
+ * D7-04: a new tenant goes to the top of the first page of every cached list whose filters it matches,
+ * whatever the sort, and that list's total goes up by 1. It moves to its sorted place on the next refetch.
+ */
+export function insertTenant(queryClient: QueryClient, tenant: Tenant): void {
+  for (const [key, data] of queryClient.getQueriesData<TenantPages>({ queryKey: listKey })) {
+    const params = (key[1] ?? {}) as ListTenantsParams;
+    const q = params.q?.trim().toLowerCase();
+    const matches =
+      (!q || tenant.name.includes(q) || tenant.displayName.toLowerCase().includes(q)) &&
+      (!params.status || params.status === tenant.status) &&
+      (!params.planId || params.planId === tenant.planId);
+    const [first, ...rest] = data?.pages ?? [];
+    if (!matches || !data || !first || first.items.some((r) => r.id === tenant.id)) continue;
+    queryClient.setQueryData<TenantPages>(key, {
+      ...data,
+      pages: [{ ...first, items: [tenant, ...first.items], total: first.total + 1 }, ...rest.map((page) => ({ ...page, total: page.total + 1 }))],
+    });
+  }
+}
+
+/** SPEC-TEN-2 submit: the caller maps errors to fields (D7-09); success is handled here (D7-11). */
+export function useCreateTenant(events: ScopedBus) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: TenantCreate) => (await createTenant(body)).data as TenantCreated,
+    onSuccess: ({ tenant, task }) => {
+      insertTenant(queryClient, tenant);
+      queryClient.setQueryData(getGetTenantQueryKey(tenant.id), tenant);
+      events.publish('task:started', { task }); // AC-TEN-2.7
+      events.publish('toast:show', { kind: 'success', message: t('tenants.toast.created', { name: tenant.name }), resource: { type: 'tenant', id: tenant.id } });
+    },
+  });
+}
+
+/**
+ * SPEC-TEN-4: suspend or resume. The 202's task goes to the task center at once (AC-TEN-4.5) and to the
+ * caller's `onStarted`. A stale row (409 TENANT_NOT_ACTIVE / TENANT_NOT_SUSPENDED) shows its message and
+ * refetches that tenant, which patches the row (D7-14). 403s are toasted by the client's MutationCache.
+ */
+export function useTenantLifecycle(events: ScopedBus, onStarted: (task: Task) => void) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ tenantId, kind }: { tenantId: string; kind: 'suspend' | 'resume' }) =>
+      (await (kind === 'suspend' ? suspendTenant(tenantId) : resumeTenant(tenantId))).data as Task,
+    onSuccess: (task) => {
+      onStarted(task);
+      events.publish('task:started', { task });
+    },
+    onError: (error, { tenantId }) => {
+      const problem = problemOf(error);
+      if (problem?.status === 403) return;
+      events.publish('toast:show', { kind: 'error', message: errorMessage(error) });
+      if (problem?.code === 'TENANT_NOT_ACTIVE' || problem?.code === 'TENANT_NOT_SUSPENDED') {
+        void queryClient
+          .fetchQuery({ queryKey: getGetTenantQueryKey(tenantId), queryFn: async ({ signal }) => (await getTenant(tenantId, { signal })).data as Tenant, staleTime: 0 })
+          .then((tenant) => patchTenant(queryClient, tenantId, { status: tenant.status }))
+          .catch(() => undefined);
+      }
     },
   });
 }

@@ -50,13 +50,15 @@ export function makeTenants(count: number): Tenant[] {
   return rows;
 }
 
+type Operation = 'listTenants' | 'listPlans' | 'getTenant' | 'getQuotas' | 'updateQuotas' | 'listTasks' | 'createTenant' | 'suspendTenant' | 'resumeTenant';
+
 export interface FakeApiOptions {
   tenants?: Tenant[];
   tasks?: Task[];
   /** Fail an operation with this status and code. */
-  fail?: Partial<Record<'listTenants' | 'listPlans' | 'getTenant' | 'getQuotas' | 'updateQuotas' | 'listTasks', { status: number; code: Problem['code']; params?: Problem['params'] }>>;
-  /** Never answer these operations (loading states). */
-  hang?: ReadonlyArray<'listTenants' | 'listPlans' | 'getTenant' | 'getQuotas' | 'listTasks'>;
+  fail?: Partial<Record<Operation, { status: number; code: Problem['code']; params?: Problem['params']; errors?: Problem['errors'] }>>;
+  /** Never answer these operations (loading and pending states). */
+  hang?: ReadonlyArray<Operation>;
 }
 
 export interface FakeRequest {
@@ -75,7 +77,8 @@ export interface FakeApi {
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': status >= 400 ? 'application/problem+json' : 'application/json' } });
-const problem = (status: number, code: Problem['code'], params?: Problem['params']) => json(status, { title: code, status, code, ...(params ? { params } : {}) });
+const problem = (status: number, code: Problem['code'], params?: Problem['params'], errors?: Problem['errors']) =>
+  json(status, { title: code, status, code, ...(params ? { params } : {}), ...(errors ? { errors } : {}) });
 
 export function quotasOf(tenant: Tenant): TenantQuotas {
   const plan = PLANS.find((p) => p.id === tenant.planId) ?? (PLANS[1] as Plan);
@@ -96,12 +99,12 @@ export function createFakeApi(options: FakeApiOptions = {}): FakeApi {
 
   const handle = async (method: string, url: URL, body: unknown): Promise<Response> => {
     const path = url.pathname.replace(/^\/api/, '');
-    const op = (name: keyof NonNullable<FakeApiOptions['fail']>) => {
-      if ((options.hang as readonly string[] | undefined)?.includes(name)) return 'hang' as const;
+    const op = (name: Operation) => {
+      if (options.hang?.includes(name)) return 'hang' as const;
       const f = options.fail?.[name];
-      return f ? problem(f.status, f.code, f.params) : null;
+      return f ? problem(f.status, f.code, f.params, f.errors) : null;
     };
-    const route = (name: keyof NonNullable<FakeApiOptions['fail']>, ok: () => Response): Promise<Response> => {
+    const route = (name: Operation, ok: () => Response): Promise<Response> => {
       const outcome = op(name);
       if (outcome === 'hang') return new Promise(() => undefined);
       return Promise.resolve(outcome ?? ok());
@@ -145,6 +148,39 @@ export function createFakeApi(options: FakeApiOptions = {}): FakeApi {
           Object.assign(tenant, update);
           return json(200, quotasOf(tenant));
         });
+    }
+    if (method === 'POST' && path === '/tenants')
+      return route('createTenant', () => {
+        const input = body as { name: string; displayName?: string; adminEmail: string; planId: string; storageQuotaBytes: number; vmQuota: number };
+        if (tenants.some((t) => t.name === input.name)) return problem(409, 'TENANT_NAME_TAKEN');
+        const tenant: Tenant = {
+          id: `t_new${tenants.length}`,
+          name: input.name,
+          displayName: input.displayName ?? input.name,
+          status: 'provisioning',
+          planId: input.planId,
+          resellerId: null,
+          adminEmail: input.adminEmail,
+          createdAt: '2026-11-05T12:00:00.000Z',
+          storageUsedBytes: 0,
+          storageQuotaBytes: input.storageQuotaBytes,
+          vmCount: 0,
+          vmQuota: input.vmQuota,
+        };
+        tenants.push(tenant);
+        return json(201, { tenant, task: task(`task_p${tenants.length}`, { kind: 'tenant.provision', progress: 0, seq: 0, status: 'queued', resource: { type: 'tenant', id: tenant.id, name: tenant.name }, tenantId: tenant.id }) });
+      });
+    const lifecycle = path.match(/^\/tenants\/([^/]+)\/(suspend|resume)$/);
+    if (lifecycle && method === 'POST') {
+      const [, id, verb] = lifecycle;
+      return route(verb === 'suspend' ? 'suspendTenant' : 'resumeTenant', () => {
+        const tenant = tenants.find((t) => t.id === id);
+        if (!tenant) return problem(404, 'NOT_FOUND');
+        if (verb === 'suspend' && tenant.status !== 'active') return problem(409, 'TENANT_NOT_ACTIVE');
+        if (verb === 'resume' && tenant.status !== 'suspended') return problem(409, 'TENANT_NOT_SUSPENDED');
+        const kind = verb === 'suspend' ? 'tenant.suspend' : 'tenant.resume';
+        return json(202, task(`task_${verb}_${tenant.id}`, { kind, progress: 0, seq: 0, status: 'queued', resource: { type: 'tenant', id: tenant.id, name: tenant.name }, tenantId: tenant.id }));
+      });
     }
     const one = path.match(/^\/tenants\/([^/]+)$/);
     if (one && method === 'GET') return route('getTenant', () => {

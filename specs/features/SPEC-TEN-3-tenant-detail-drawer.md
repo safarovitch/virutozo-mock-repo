@@ -27,6 +27,6 @@ Shared rules: [mf-contract](../shared/mf-contract.md) · [realtime](../shared/re
 | **AC-TEN-3.8** | `updateQuotas` emits `quota.updated` with the new values (mock-api integration test). | `done` |
 | **AC-TEN-3.9** | A `server:quota.updated` on a fake bus updates the storage usage card with zero HTTP calls (storage component test; MSW asserts none). | `planned` |
 | **AC-TEN-3.10** | Given a reseller_admin, after saving a quota in the tenant drawer, opening `/storage?tenantId=t_acme` shows the new quota (e2e). | `planned` |
-| **AC-TEN-3.11** | For a suspended tenant, quota fields are read-only and *Resume* is shown. | `in-progress` |
+| **AC-TEN-3.11** | For a suspended tenant, quota fields are read-only and *Resume* is shown. | `done` |
 | **AC-TEN-3.12** | Switching drawer tabs doesn't add history entries; *Back* closes the drawer. | `done` |
 | **AC-TEN-3.13** | `/tenants/t_acme?tab=bogus` shows Overview and the URL becomes `/tenants/t_acme`. | `done` |

@@ -18,3 +18,4 @@
 - Bus errors go to the logger through `createSessionBus` (`bus.ts`); don't create a root bus with `createRootBus` directly.
 - The header now has a second `role="status"` ("Connection"); name your status queries in tests. The suspended-tenant banner is a third, unnamed one above `<main>`.
 - `server:tenant.updated` for the own tenant replaces the session snapshot (new frozen object, same bus); `RemoteHost` passes session changes to remotes through `update(ctx)`. Never mutate a snapshot.
+- `RemoteHost` owns remote failures: load failure, `mount()` throwing, and fatal `remote:error` from that remote's scope all show `RemoteUnavailable`, each logged once through `@nimbus/logger` (`remote.load_failed`, `remote.crashed`, `remote.error`). Unmount after a crash in a microtask, never inside the remote's callback.

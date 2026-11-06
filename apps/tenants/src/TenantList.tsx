@@ -1,12 +1,14 @@
 // SPEC-TEN-1: server-side search, filters and sort from the URL; infinite scroll over cursor pages;
 // virtualised rows; live status through the area's cache (AC-TEN-1.6).
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import type { Plan, Tenant, TenantStatus } from '@nimbus/api-client/model';
+import { useEffect, useId, useMemo, useRef, useState, type Ref } from 'react';
+import { Permission, type Plan, type Tenant, type TenantStatus } from '@nimbus/api-client/model';
 import { TenantStatus as Statuses } from '@nimbus/api-client/model';
 import { formatBytes, formatCount, formatDateTime } from '@nimbus/format';
-import { DataTable, EmptyState, ErrorState, StatusBadge, UsageBar, dataTableColumns, type SortingState, type StatusTone } from '@nimbus/ui-kit';
+import { Button, DataTable, EmptyState, ErrorState, StatusBadge, UsageBar, dataTableColumns, useCan, type SortingState, type StatusTone } from '@nimbus/ui-kit';
+import { useAreaActions, useLifecycleAction } from './actions';
 import { useCtx, useGo } from './context';
 import { errorMessage } from './data';
+import { useRunning } from './lifecycle';
 import { t } from './messages/en';
 import { RowMenu } from './RowMenu';
 import { columnToSort, hasFilters, sortToColumn, type ListState, type SortColumn, type TenantsUrl } from './url';
@@ -18,6 +20,18 @@ const TONES: Record<TenantStatus, StatusTone> = { active: 'success', suspended: 
 
 export function TenantStatusBadge({ status }: { status: TenantStatus }) {
   return <StatusBadge tone={TONES[status]} label={t(`status.tenant.${status}`)} />;
+}
+
+/** The status, or "Suspending…" / "Resuming…" with a spinner while such a task runs (D7-01). */
+export function TenantStatusCell({ tenant }: { tenant: Pick<Tenant, 'id' | 'status'> }) {
+  const running = useRunning(tenant.id);
+  if (!running) return <TenantStatusBadge status={tenant.status} />;
+  return (
+    <span className="tenants-status--busy">
+      <span className="nui-spinner" aria-hidden="true" />
+      <StatusBadge tone="info" label={t(running.kind === 'tenant.suspend' ? 'status.tenant.suspending' : 'status.tenant.resuming')} />
+    </span>
+  );
 }
 
 export interface TenantListViewProps {
@@ -34,11 +48,15 @@ export interface TenantListViewProps {
   onEndReached?: () => void;
   /** Height of the scrolling table; the page fills the viewport in the app. */
   height?: number;
+  /** The toolbar's *Create tenant*: focus returns here when the wizard closes (AC-TEN-2.6, D7-10). */
+  createRef?: Ref<HTMLButtonElement>;
 }
 
 /** The list without data fetching, so every state has a story (H6). */
-export function TenantListView({ url, rows, total, plans, plansReady, loading, error, fetchingMore, refreshing, onRetry, onEndReached, height = 600 }: TenantListViewProps) {
+export function TenantListView({ url, rows, total, plans, plansReady, loading, error, fetchingMore, refreshing, onRetry, onEndReached, height = 600, createRef }: TenantListViewProps) {
   const ctx = useCtx();
+  const actions = useAreaActions();
+  const canCreate = useCan(Permission['tenant:create']); // hidden without it (RBAC-4 toolbar rule, D5-16)
   const go = useGo();
   const { list } = url;
   const setList = (next: ListState, options?: { replace?: boolean }) => go({ list: next, other: url.other }, options);
@@ -49,7 +67,7 @@ export function TenantListView({ url, rows, total, plans, plansReady, loading, e
       col.columns([
         col.accessor('name', { header: t('tenants.columns.name') }),
         col.accessor('displayName', { header: t('tenants.columns.displayName'), enableSorting: false }),
-        col.accessor('status', { header: t('tenants.columns.status'), enableSorting: false, cell: (c) => <TenantStatusBadge status={c.getValue()} /> }),
+        col.accessor('status', { header: t('tenants.columns.status'), enableSorting: false, cell: (c) => <TenantStatusCell tenant={c.row.original} /> }),
         col.accessor('planId', { header: t('tenants.columns.plan'), enableSorting: false, cell: (c) => plans.get(c.getValue())?.name ?? '—' }),
         col.accessor('storageUsedBytes', {
           id: 'storageUsedBytes',
@@ -88,13 +106,29 @@ export function TenantListView({ url, rows, total, plans, plansReady, loading, e
       />
     );
   } else {
-    empty = <EmptyState title={t('tenants.empty')} />; // *Create tenant* joins with SPEC-TEN-2 (D5-16)
+    empty = (
+      <EmptyState
+        title={t('tenants.empty')}
+        action={
+          canCreate ? (
+            <Button variant="primary" onClick={actions.openCreate}>
+              {t('tenants.create')}
+            </Button>
+          ) : undefined
+        }
+      />
+    );
   }
 
   return (
     <section className="tenants-list" aria-labelledby="tenants-title">
       <header className="tenants-list__header">
         <h1 id="tenants-title">{t('tenants.title')}</h1>
+        {canCreate && (
+          <Button ref={createRef} variant="primary" onClick={actions.openCreate}>
+            {t('tenants.create')}
+          </Button>
+        )}
         {total !== undefined && !error && (
           <p className="tenants-list__count" aria-live="polite">
             {t('tenants.list.count', { shown: formatCount(rows.length), total: formatCount(total) })}
@@ -122,19 +156,26 @@ export function TenantListView({ url, rows, total, plans, plansReady, loading, e
           empty={empty}
           height={height}
           rowHeight={ROW_HEIGHT}
-          rowActions={(row) => (
-            <RowMenu
-              name={row.name}
-              items={[
-                { label: t('tenants.menu.open'), onSelect: () => open(row) },
-                { label: t('tenants.menu.viewVms'), onSelect: () => ctx.navigate(`/compute?tenantId=${encodeURIComponent(row.id)}`) },
-                { label: t('tenants.menu.viewBuckets'), onSelect: () => ctx.navigate(`/storage?tenantId=${encodeURIComponent(row.id)}`) },
-              ]}
-            />
-          )}
+          rowActions={(row) => <TenantRowMenu tenant={row} onOpen={() => open(row)} navigate={ctx.navigate} />}
         />
       )}
     </section>
+  );
+}
+
+function TenantRowMenu({ tenant, onOpen, navigate }: { tenant: Tenant; onOpen: () => void; navigate: (to: string) => void }) {
+  const actions = useAreaActions();
+  const lifecycle = useLifecycleAction(tenant);
+  return (
+    <RowMenu
+      name={tenant.name}
+      items={[
+        { label: t('tenants.menu.open'), onSelect: onOpen },
+        { label: t('tenants.menu.viewVms'), onSelect: () => navigate(`/compute?tenantId=${encodeURIComponent(tenant.id)}`) },
+        { label: t('tenants.menu.viewBuckets'), onSelect: () => navigate(`/storage?tenantId=${encodeURIComponent(tenant.id)}`) },
+        { label: lifecycle.label, onSelect: () => actions.openLifecycle(tenant, lifecycle.verb), ...(lifecycle.disabledReason ? { disabledReason: lifecycle.disabledReason } : {}) },
+      ]}
+    />
   );
 }
 

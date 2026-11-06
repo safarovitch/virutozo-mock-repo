@@ -16,3 +16,6 @@
 - DataTable never sorts rows itself (`manualSorting`): the caller owns `sorting` (URL) and the order of `data`.
 - DataTable never removes a sort (`enableSortingRemoval: false`, D5-01); a column that should start descending sets `sortDescFirst`. Infinite scroll: `onEndReached` fires once per data length; a play test must wait for the spinner row to go before scrolling again.
 - TanStack Table 9 differs from v8: read `node_modules/@tanstack/react-table/skills/*` before changing DataTable.
+- `Wizard` is uncontrolled unless you pass both `step` and `onStepChange` (Edit links, jumping back on a 409). Focus moves to the step heading on every change.
+- `Modal` stops Escape from propagating, so a dialog over another (a discard prompt) closes alone.
+- `RemoteErrorBoundary` is the root boundary of a React remote; pair it with `createRoot(el, { onCaughtError: () => {} })`.

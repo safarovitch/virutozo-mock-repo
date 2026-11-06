@@ -232,6 +232,22 @@ Shared keys live in `libs/messages`; area keys in `apps/<area>/src/messages/en.t
 | `tenants.discardChanges` | Discard changes? | SPEC-TEN-2 | `draft` |
 | `tenants.toast.created` | Tenant {name} created. | SPEC-TEN-2 | `draft` |
 | `tenants.toast.suspended` / `resumed` | Tenant {name} suspended. / Tenant {name} resumed. | SPEC-TEN-4 | `draft` |
+| `tenants.wizard.title` | Create tenant | SPEC-TEN-2, D7-22 | `draft` |
+| `tenants.wizard.steps.details` / `plan` / `review` | Details / Plan & quotas / Review | SPEC-TEN-2, D7-22 | `draft` |
+| `tenants.fields.name` / `displayName` / `plan` | Name / Display name / Plan | SPEC-TEN-2, D7-22 | `draft` |
+| `tenants.wizard.displayNameHint` | Optional. Defaults to the name. | SPEC-TEN-2, D7-06 | `draft` |
+| `tenants.wizard.edit` | Edit {step} | AC-TEN-2.3, D7-22 | `draft` |
+| `tenants.wizard.planLimits` | Up to {storage} and {vms} VMs | SPEC-TEN-2, D7-06 | `draft` |
+| `tenants.wizard.planPrice` | {perGiB} per GiB · {perVcpu} per vCPU a month | SPEC-TEN-2, D7-06 | `draft` |
+| `tenants.wizard.noPlans` | No plans are available. | SPEC-TEN-2, D7-08 | `draft` |
+| `tenants.discard` | Discard | SPEC-TEN-2, D7-10 | `draft` |
+| `validation.required` / `email` / `wholeNumber` / `min` | Enter a value. / Enter a valid email address. / Enter a whole number. / Enter {min} or more. | SPEC-TEN-2, D7-06 | `draft` |
+| `tenants.menu.suspend` / `resume` | Suspend / Resume | SPEC-TEN-4, D7-13 | `draft` |
+| `tenants.suspend.title` / `body` / `confirm` | Suspend {name}? / Users of {displayName} can't start, stop or change VMs, buckets or quotas until the tenant is resumed. Running VMs keep running. / Suspend tenant | SPEC-TEN-4, D7-13 | `draft` |
+| `tenants.resume.title` / `body` / `confirm` | Resume {name}? / Users of {displayName} can change VMs, buckets and quotas again. / Resume tenant | SPEC-TEN-4, D7-02 | `draft` |
+| `tenants.suspendUnavailable` | Only active tenants can be suspended. | SPEC-TEN-4, D7-03 | `draft` |
+| `tenants.lifecycleInProgress` | Wait for the current operation on this tenant to finish. | SPEC-TEN-4, A7-01 | `draft` |
+| `status.tenant.suspending` / `resuming` | Suspending… / Resuming… | SPEC-TEN-4, D7-01 | `draft` |
 | `tenants.title` | Tenants | SPEC-TEN-1, D5-18 | `draft` |
 | `tenants.columns.name` / `displayName` / `status` / `plan` / `storage` / `vmQuota` / `created` | Name / Display name / Status / Plan / Storage / VM quota / Created | SPEC-TEN-1, D5-18 | `draft` |
 | `tenants.search` | Search tenants | AC-TEN-1.2 | `draft` |

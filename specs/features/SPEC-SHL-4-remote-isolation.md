@@ -21,9 +21,9 @@ Shared rules: [mf-contract](../shared/mf-contract.md) · [realtime](../shared/re
 
 | ID | Criterion | Status |
 |---|---|---|
-| **AC-SHL-4.1** | Given the storage remote fails to load, when the user opens `/storage`, then an error panel `shell.remoteUnavailable` "Storage is temporarily unavailable." with *Retry* is shown, and the sidebar and header stay usable. | `planned` |
-| **AC-SHL-4.2** | Given the storage remote fails, then `/tenants` and `/compute` each show their heading and at least one data row. | `planned` |
-| **AC-SHL-4.3** | A render error in any remote (React or Vue) results in the MF-4 panel for that remote and one logger entry naming it. | `planned` |
-| **AC-SHL-4.4** | When the remote is back (e2e: `page.unroute`) and the user clicks *Retry*, then it loads without a full page refresh. | `planned` |
-| **AC-SHL-4.5** | After the shell calls `update` with a session that no longer has `vm:operate`, compute's action buttons disappear without a remount (component test: `mountRemote` from `libs/test-utils` mounts compute, then calls `update()` with a `SessionSnapshot` without `vm:operate`). | `planned` |
-| **AC-SHL-4.6** | Browser back/forward between `/compute` and `/compute/vm_01` (SPEC-CMP-5) updates the compute view through `ctx.path`. | `planned` |
+| **AC-SHL-4.1** | Given the storage remote fails to load, when the user opens `/storage`, then an error panel `shell.remoteUnavailable` "Storage is temporarily unavailable." with *Retry* is shown, and the sidebar and header stay usable. | `done` |
+| **AC-SHL-4.2** | Given the storage remote fails, then `/tenants` and `/compute` each show their heading and at least one data row. | `done` |
+| **AC-SHL-4.3** | A render error in any remote (React or Vue) results in the MF-4 panel for that remote and one logger entry naming it. | `done` |
+| **AC-SHL-4.4** | When the remote is back (e2e: `page.unroute`) and the user clicks *Retry*, then it loads without a full page refresh. | `done` |
+| **AC-SHL-4.5** | After the shell calls `update` with a session that no longer has `vm:operate`, compute's action buttons disappear without a remount (component test: `mountRemote` from `libs/test-utils` mounts compute, then calls `update()` with a `SessionSnapshot` without `vm:operate`). | `done` |
+| **AC-SHL-4.6** | Browser back/forward between `/compute` and `/compute/vm_01` (SPEC-CMP-5) updates the compute view through `ctx.path`. | `done` |

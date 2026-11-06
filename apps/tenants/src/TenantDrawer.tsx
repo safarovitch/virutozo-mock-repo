@@ -9,7 +9,8 @@ import { Button, Drawer, EmptyState, ErrorState, ProgressBar, Skeleton, StatusBa
 import { useCtx, useGo } from './context';
 import { errorMessage, problemOf, useActivity, useQuotas, useTenant, useUpdateQuotas } from './data';
 import { t } from './messages/en';
-import { TenantStatusBadge } from './TenantList';
+import { useAreaActions, useLifecycleAction } from './actions';
+import { TenantStatusCell } from './TenantList';
 import { TABS, type Tab, type TenantsUrl } from './url';
 
 export function TenantDrawer({ url, plans }: { url: TenantsUrl; plans: ReadonlyMap<string, Plan> }) {
@@ -55,6 +56,7 @@ function DrawerTabs({ url, tenant, plan }: { url: TenantsUrl; tenant: Tenant; pl
 
   return (
     <>
+      <LifecycleButton tenant={tenant} />
       <div role="tablist" className="tenants-tabs" aria-label={tenant.displayName}>
         {TABS.map((tab) => (
           <button
@@ -90,6 +92,23 @@ function DrawerTabs({ url, tenant, plan }: { url: TenantsUrl; tenant: Tenant; pl
   );
 }
 
+/** D7-15: a danger *Suspend* for active tenants, *Resume* as the primary action for suspended ones (SPEC-TEN-3). */
+function LifecycleButton({ tenant }: { tenant: Tenant }) {
+  const actions = useAreaActions();
+  const action = useLifecycleAction(tenant);
+  return (
+    <p className="tenants-drawer__actions">
+      <Button
+        variant={action.verb === 'resume' ? 'primary' : 'danger'}
+        {...(action.disabledReason ? { disabledReason: action.disabledReason } : {})}
+        onClick={() => actions.openLifecycle(tenant, action.verb)}
+      >
+        {action.label}
+      </Button>
+    </p>
+  );
+}
+
 /** Real links (open in a new tab works) that navigate through the shell on a plain click. */
 function useLinkTo() {
   const ctx = useCtx();
@@ -111,7 +130,7 @@ function Overview({ tenant, plan }: { tenant: Tenant; plan?: Plan }) {
       <dd>{tenant.id}</dd>
       <dt>{t('tenants.columns.status')}</dt>
       <dd>
-        <TenantStatusBadge status={tenant.status} />
+        <TenantStatusCell tenant={tenant} />
       </dd>
       <dt>{t('tenants.columns.plan')}</dt>
       <dd>{plan?.name ?? '—'}</dd>

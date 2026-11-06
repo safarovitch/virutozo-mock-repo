@@ -2,15 +2,39 @@
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
   "namedInputs": {
     "default": ["{projectRoot}/**/*", "sharedGlobals"],
-    "production": ["default", "!{projectRoot}/**/*.test.*", "!{projectRoot}/**/*.spec.*", "!{projectRoot}/**/AGENTS.md"],
-    "sharedGlobals": ["{workspaceRoot}/tsconfig.base.json", "{workspaceRoot}/tools/mf/**/*", "{workspaceRoot}/config/**/*"]
+    "production": [
+      "default",
+      "!{projectRoot}/**/*.test.*",
+      "!{projectRoot}/**/*.spec.*",
+      "!{projectRoot}/**/AGENTS.md"
+    ],
+    "sharedGlobals": [
+      "{workspaceRoot}/tsconfig.base.json",
+      "{workspaceRoot}/tools/mf/**/*",
+      "{workspaceRoot}/config/**/*"
+    ]
   },
   "targetDefaults": {
-    "build": { "cache": true, "dependsOn": ["^build"], "inputs": ["production", "^production"] },
-    "build-e2e": { "cache": true, "dependsOn": ["^build"], "inputs": ["production", "^production"] },
-    "lint": { "cache": true, "inputs": ["default", "{workspaceRoot}/eslint.config.mjs"] },
-    "typecheck": { "cache": true },
-    "test": { "cache": true }
+    "build": {
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"]
+    },
+    "build-e2e": {
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"]
+    },
+    "lint": {
+      "cache": true,
+      "inputs": ["default", "{workspaceRoot}/eslint.config.mjs"]
+    },
+    "typecheck": {
+      "cache": true
+    },
+    "test": {
+      "cache": true
+    }
   },
   "plugins": [
     {
@@ -24,7 +48,11 @@
     },
     {
       "plugin": "@nx/vitest",
-      "options": { "testTargetName": "test", "testMode": "run" }
+      "options": {
+        "testTargetName": "test",
+        "testMode": "run"
+      }
     }
-  ]
+  ],
+  "analytics": true
 }

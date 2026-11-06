@@ -19,3 +19,6 @@
 - Anything acme's sessions can see goes in a `*.exclusive.spec.ts` (project `exclusive`: after the parallel projects, one worker, `resetSeed` in `afterAll`): real VM tasks (task center counts, `getTask` fetches), suspending acme, and `/api/__test/emit` events for acme. Since SPEC-SHL-8 an emitted `tenant.updated` changes every acme session's header and disables its actions (A6-05).
 - On `/compute`, wait for the VM table before expiring the session: Compute's own first requests would otherwise get the 401 (A6-06).
 - `PerformanceObserver` doesn't see code run by `page.evaluate`; plant measurable work with `setTimeout` inside the page.
+- `getByLabel('Name')` also matches "Display name": pass `exact: true`. A failed task's message appears in the toast and in the task center: scope to `getByRole('region', { name: 'Notifications' })`.
+- Creating tenants changes "Showing … of 10,000 tenants": wizard submits and suspends run in `*.exclusive.spec.ts` (D7-16). Crash tests use each remote's `/__crash` route.
+- `build` and `build-e2e` share `dist`: after a production build (`check:no-test-hooks`), run `pnpm nx run-many -t build-e2e --skip-nx-cache` before `pnpm e2e`, or crash tests see production bundles (A7-13).

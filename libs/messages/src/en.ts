@@ -31,6 +31,8 @@ export const en = {
   'status.tenant.suspended': 'Suspended', // draft
   'status.tenant.provisioning': 'Provisioning', // draft
   'status.tenant.error': 'Error', // draft
+  'status.tenant.suspending': 'Suspending…', // draft (D7-01)
+  'status.tenant.resuming': 'Resuming…', // draft (D7-01)
 
   // ── Connection (WS-4, WS-7) ──
   'connections.label': 'Connection',

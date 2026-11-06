@@ -12,3 +12,5 @@
 - `base` is `/remotes/storage/` for builds and `/` in dev; the gateway and `config/remotes.*.json` depend on it.
 - Shared singletons come only from `tools/mf/shared.ts`; don't add a `shared` list here (H11).
 - `mount()` must return a working `update(ctx)`; never remount on context changes.
+- `mount.tsx` wraps the root in ui-kit's `RemoteErrorBoundary` and creates the root with `onCaughtError: () => {}`; the shell logs the crash once (MF-6, D7-17).
+- `/__crash` (non-production builds only) throws during render for SPEC-SHL-4 tests; `ci/no-test-hooks` checks it's gone from production bundles.

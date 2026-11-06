@@ -1,4 +1,4 @@
-import { useId, type ButtonHTMLAttributes, type MouseEvent, type ReactNode } from 'react';
+import { useId, type ButtonHTMLAttributes, type MouseEvent, type ReactNode, type Ref } from 'react';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
 
@@ -11,6 +11,8 @@ export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
    * `aria-disabled`, ignores clicks, and shows this text as a tooltip on hover and focus.
    */
   disabledReason?: string;
+  /** React 19: `ref` is a plain prop, passed to the `<button>` (focus return, AC-TEN-2.6). */
+  ref?: Ref<HTMLButtonElement>;
   children: ReactNode;
 }
 

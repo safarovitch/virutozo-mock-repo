@@ -47,6 +47,7 @@ export function Modal({ open, onClose, title, children, footer, className }: Mod
       onKeyDown={(event) => {
         if (event.key !== 'Escape') return;
         event.preventDefault();
+        event.stopPropagation(); // a dialog opened over another (a discard prompt) closes alone
         onClose();
       }}
       onCancel={(event) => event.preventDefault()}

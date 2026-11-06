@@ -8,5 +8,6 @@ export { EmptyState, ErrorState, Skeleton } from './States';
 export { ToastProvider, useToast, TOAST_TIMEOUT_MS, type ToastInput, type ToastTone } from './Toast';
 export { ConfirmDialog, Dialog, Drawer, type ConfirmDialogProps } from './Dialog';
 export { Wizard, type WizardProps, type WizardStep } from './Wizard';
+export { RemoteErrorBoundary } from './RemoteErrorBoundary';
 export { DataTable, dataTableColumns, dataTableFeatures, type DataTableFeatures, type DataTableProps, type SortingState } from './DataTable';
 export { Can, SessionProvider, useCan, useSession } from '@nimbus/auth/react';
