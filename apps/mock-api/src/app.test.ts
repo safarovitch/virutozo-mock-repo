@@ -199,6 +199,23 @@ describe('errors from specs/mock-data.md §9', () => {
     expect((await create('acme-full')).json).toMatchObject({ code: 'QUOTA_EXCEEDED', status: 422 });
   });
 
+  it('AC-SHL-5.3: the vitals summary needs vitals:read (provider_admin only, D9-04) and rates p75 of the last 24 h', async () => {
+    const record = { metric: 'LCP', value: 3000, rating: 'needs-improvement', route: '/tenants', remote: 'tenants', navigationType: 'navigate', ts: new Date().toISOString() };
+    await call(app, { method: 'POST', url: '/api/rum', body: [record, { ...record, value: 1000 }, { ...record, value: 2000 }, { ...record, value: 5000 }], csrf: false, headers: { origin: ORIGIN } });
+    for (const role of ['reseller_admin', 'tenant_admin', 'tenant_viewer'] as const) expect((await call(app, { method: 'GET', url: '/api/rum/summary', cookie: await login(app, role) })).status).toBe(403);
+    const res = await call(app, { method: 'GET', url: '/api/rum/summary', cookie: await login(app, 'provider_admin') });
+    expect(res.json).toEqual([{ route: '/tenants', metric: 'LCP', p75: 3000, rating: 'needs-improvement', samples: 4 }]);
+  });
+
+  it('TECH-3: __test/reset also clears the RUM rate limit', async () => {
+    const record = { metric: 'INP', value: 80, rating: 'good', route: '/compute', remote: 'compute', navigationType: 'navigate', ts: new Date().toISOString() };
+    const post = () => call(app, { method: 'POST', url: '/api/rum', body: [record], csrf: false, headers: { origin: ORIGIN, 'x-forwarded-for': '10.0.0.7' } });
+    for (let i = 0; i < 60; i++) await post();
+    expect((await post()).status).toBe(429);
+    await call(app, { method: 'POST', url: '/api/__test/reset' });
+    expect((await post()).status).toBe(204);
+  });
+
   it('TECH-3: reportVitals is rate-limited per client IP (X-Forwarded-For from the gateway) and size-limited', async () => {
     const record = { metric: 'INP', value: 80, rating: 'good', route: '/compute', remote: 'compute', navigationType: 'navigate', ts: new Date().toISOString() };
     const post = (ip: string, body: unknown = [record]) =>

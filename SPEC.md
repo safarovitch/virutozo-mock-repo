@@ -610,7 +610,7 @@ See `AGENTS.md`; this section only describes what it must cover: where to find t
 | `spec-reviewer` | Checks a feature spec for missing states, ambiguous ACs, missing permissions, untestable criteria **before** implementation | read-only |
 | `test-writer` | Writes tests from ACs only, without reading the implementation (prevents tests that mirror bugs) | read specs + write tests |
 | `code-reviewer` | Reviews a diff against AGENTS.md rules, the spec and security/a11y checklists; outputs findings with severity | read-only |
-| `bug-reproducer` | Uses Playwright against the running dev stand to reproduce a reported bug and attaches a trace | Playwright MCP / shell |
+| `bug-reproducer` | Uses Playwright against the running dev stand to reproduce a reported bug and attaches a trace | read + shell (Playwright CLI, `pnpm e2e --grep`, traces; D9-02) |
 
 ### 11.4 Hooks
 The shipped hooks are the source of truth; this table describes them. HOOK-1/2/3/5 are Claude Code hooks (`.claude/settings.json`); HOOK-4 is a git hook (`lefthook.yml`) that protects against any agent or human. Agents can't change `.claude/settings.json` or `.claude/hooks/**` (HOOK-2, AGENTS.md H15).
@@ -639,7 +639,7 @@ A small Node MCP server that exposes the product knowledge base so agents query 
 ### 11.6 Evals for skills — `tools/evals`
 Purpose: prove that a change to a skill or AGENTS.md makes agent output better, not worse.
 
-- **Fixtures:** 5 small tasks with a fixed repo snapshot each (e.g. "add a `Region` column to the tenant list", "implement AC-STO-2.2").
+- **Fixtures:** at least 2 (target 5, D9-06) small tasks with a fixed repo snapshot each (e.g. "add a `Region` column to the tenant list", "implement AC-STO-2.2").
 - **Graders (automatic):** typecheck passes · lint passes · target AC tests pass · no forbidden patterns (raw fetch, role-name checks, generated-file edits) · all 5 states present (grep for stories/tests).
 - **Output:** a score table per skill version stored in `tools/evals/results/`. A skill change PR must not lower the score.
 
@@ -734,7 +734,7 @@ TECH items, their statuses and how each one is verified live in **`specs/tech-ta
 Start the stack with `pnpm demo:local` (e2e build mode, `NIMBUS_MODE=e2e`, `MOCK_LATENCY_MS=150`, `MOCK_FAILURE_RATE=0.1`): realistic latency and failures, and the `/__test/fail-remotes` toggle works. `NIMBUS_MODE=demo` is only for the public preview deploy, where test endpoints stay off.
 
 1. **Spec → code trace (1 min).** Open `specs/features/SPEC-TEN-2.md`, show an AC, run `pnpm trace` and jump to the test named `AC-TEN-2.4`.
-2. **Contract-first (1 min).** Add a field in `main.tsp`, regenerate, show the TypeScript error appear in the tenant table until it's handled.
+2. **Contract-first (1 min).** Add a field in `main.tsp`, regenerate, and show the TypeScript errors appear where `Tenant` objects are built (the mock-api seed and the test fakes) until they're handled; then add the column (A9-13, rehearsed 2026-11-06).
 3. **App tour (2 min).** Sign in as provider admin → scroll 10k tenants → create tenant (show the 409 path) → sign in as tenant admin → reboot a VM in the **Vue** remote and watch progress in the **React** shell's task center.
 4. **Resilience (30 s).** Toggle the gateway with `POST /__test/fail-remotes { "remotes": ["storage"] }`; Storage shows an error panel, everything else works. Toggle it back and click *Retry*.
 5. **Harness (2 min).** Ask the agent to "add a Region column to tenants". Show: it queries the MCP spec server, HOOK-2 blocks it from editing generated code, the lint rule catches a raw `fetch`, and the hook feeds the error back so it fixes itself.

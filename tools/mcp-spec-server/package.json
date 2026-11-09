@@ -1,0 +1,19 @@
+{
+  "name": "@nimbus/mcp-spec-server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/main.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "yaml": "2.9.1",
+    "zod": "4.6.7"
+  },
+  "nx": {
+    "name": "mcp-spec-server"
+  }
+}

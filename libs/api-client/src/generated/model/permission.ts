@@ -24,4 +24,5 @@ export const Permission = {
   'bucket:delete': 'bucket:delete',
   'task:read': 'task:read',
   'plan:read': 'plan:read',
+  'vitals:read': 'vitals:read',
 } as const;

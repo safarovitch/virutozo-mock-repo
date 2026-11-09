@@ -1,0 +1,11 @@
+{
+  "name": "suspend-resume",
+  "skill": "long-running-task",
+  "task": "Implement SPEC-TEN-4: suspend (type-to-confirm) and resume as tasks, with Suspending… from the running task, no optimistic status, and failure handling (AC-TEN-4.1 … AC-TEN-4.6).",
+  "targets": ["AC-TEN-4.1", "AC-TEN-4.2", "AC-TEN-4.3", "AC-TEN-4.4", "AC-TEN-4.5", "AC-TEN-4.6"],
+  "projects": ["tenants"],
+  "ui": true,
+  "area": "tenants",
+  "base": "524b4cb",
+  "head": "c55a5fc"
+}

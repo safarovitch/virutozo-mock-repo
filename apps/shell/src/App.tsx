@@ -4,6 +4,7 @@ import { useEffect, useSyncExternalStore } from 'react';
 import { Navigate, Route, Routes, useLocation, useSearchParams } from 'react-router';
 import { AREAS, can, homeArea, loginUrl, returnToFor, safeReturnTo } from '@nimbus/auth';
 import { SessionProvider } from '@nimbus/auth/react';
+import { Permission } from '@nimbus/api-client/model';
 import type { RootBus, SessionSnapshot } from '@nimbus/mf-contract';
 import { t } from '@nimbus/messages';
 import { useToast } from '@nimbus/ui-kit';
@@ -12,6 +13,7 @@ import { LoginPage } from './LoginPage';
 import type { Manifest } from './manifest';
 import { BootError, BootLoader, NoAccessPage, NotFoundPage } from './pages';
 import { RemoteHost } from './RemoteHost';
+import { VitalsPage } from './VitalsPage';
 import type { SessionStore } from './session';
 
 export function App({ manifest, store }: { manifest: Manifest; store: SessionStore }) {
@@ -62,6 +64,8 @@ function AreaRoutes({ manifest, session, bus }: { manifest: Manifest; session: S
           }
         />
       ))}
+      {/* SPEC-SHL-5: internal, not in the sidebar; only with vitals:read (D9-04). */}
+      <Route path="/_vitals" element={can(session, Permission['vitals:read']) ? <VitalsPage /> : <NoAccessPage home={home} />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );

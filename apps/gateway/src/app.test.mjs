@@ -88,6 +88,7 @@ describe('gateway routing (SPEC.md §2.2)', () => {
   beforeAll(async () => {
     upstream = Fastify();
     upstream.get('/api/me', async () => ({ from: 'mock-api' }));
+    upstream.post('/api/rum', async (req) => ({ forwardedFor: req.headers['x-forwarded-for'] ?? null }));
     await upstream.listen({ port: 0, host: '127.0.0.1' });
     app = await buildGateway(fixture({ mockApiUrl: `http://127.0.0.1:${upstream.server.address().port}` }));
   });
@@ -101,6 +102,13 @@ describe('gateway routing (SPEC.md §2.2)', () => {
     const res = await app.inject({ url: '/api/me' });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ from: 'mock-api' });
+  });
+
+  it('BUG-7: X-Forwarded-For carries the client socket address; a value the client sent is dropped', async () => {
+    const spoofed = await app.inject({ method: 'POST', url: '/api/rum', headers: { 'x-forwarded-for': '10.9.9.9' }, remoteAddress: '192.0.2.7', payload: [] });
+    expect(spoofed.json()).toEqual({ forwardedFor: '192.0.2.7' });
+    const plain = await app.inject({ method: 'POST', url: '/api/rum', remoteAddress: '192.0.2.8', payload: [] });
+    expect(plain.json()).toEqual({ forwardedFor: '192.0.2.8' });
   });
 
   it('TECH-1: serves the gateway manifest at /remotes.json without caching', async () => {

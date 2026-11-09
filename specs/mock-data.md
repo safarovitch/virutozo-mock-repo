@@ -136,7 +136,7 @@ Test-only endpoints, under `/api/__test/` so the gateway proxies them and the `P
 
 | Endpoint | Body | Acts on |
 |---|---|---|
-| `POST /api/__test/reset` | — | everything: re-seed (seeded task times become relative to now) |
+| `POST /api/__test/reset` | — | everything: re-seed (seeded task times become relative to now) and clear the `reportVitals` rate-limit windows (A9-04) |
 | `POST /api/__test/expire-session` | `{ "all": true }` optional | the caller's session (cookie); `all` expires every session (AC-SHL-1.4) |
 | `POST /api/__test/drop-sockets` | `{ "all": true, "holdMs": 3000 }` both optional | the caller's sockets, closed with 1001; `all` drops every socket. For `holdMs` (default 0) new upgrades from the affected sessions are refused with 503, so the client stays `reconnecting` long enough to assert (AC-SHL-6.4, D4-05) |
 | `POST /api/__test/fail-next-task` | `{ kind, code }` | global: the next task of `kind` fails with `code` (AC-TEN-4.3) |
@@ -290,6 +290,11 @@ Shared keys live in `libs/messages`; area keys in `apps/<area>/src/messages/en.t
 | `storage.bucketNameIp` | Bucket names can't look like IP addresses. | AC-STO-2.2 | `draft` |
 | `storage.toast.created` / `deleted` | Bucket {name} created. / Bucket {name} deleted. | SPEC-STO-2 | `draft` |
 | `storage.chooseTenant` | Choose a tenant to see its buckets. | SPEC-STO-3 | `draft` |
+| `vitals.title` / `vitals.description` | Web Vitals / 75th percentile per route over the last 24 hours. | SPEC-SHL-5 `/_vitals`, D9-09 | `draft` |
+| `vitals.empty` | No measurements in the last 24 hours. | SPEC-SHL-5, D9-09 | `draft` |
+| `vitals.columns.route` / `metric` / `p75` / `rating` / `samples` | Route / Metric / p75 / Rating / Samples | SPEC-SHL-5, D9-09 | `draft` |
+| `vitals.ms` | {value} ms | SPEC-SHL-5, D9-09 | `draft` |
+| `vitals.rating.good` / `needs-improvement` / `poor` | Good / Needs improvement / Poor | AC-SHL-5.3, D9-09 | `draft` |
 | `common.tenant` | Tenant | SPEC-CMP-4, SPEC-STO-3 picker label, D8-06 | `draft` |
 | `tenantPicker.placeholder` / `noResults` | Search tenants / No tenants match. | SPEC-CMP-4, SPEC-STO-3, D8-06 | `draft` |
 | `tenantStatus.openTenant` | Open tenant | SPEC-CMP-4 admin banner, D8-09 | `draft` |

@@ -13,6 +13,7 @@ vm:read      vm:operate     vm:create
 bucket:read  bucket:create  bucket:delete
 task:read
 plan:read
+vitals:read
 ```
 
 ## Matrix
@@ -32,6 +33,7 @@ plan:read
 | bucket:create / delete | — | — | ✅ | — |
 | task:read | ✅ | ✅ | ✅ | ✅ |
 | plan:read | ✅ | ✅ | — | — |
+| vitals:read | ✅ | — | — | — |
 
 Scope (all / own) is enforced by the **API**. The UI only hides or disables; it is never the security boundary (`RBAC-2`).
 

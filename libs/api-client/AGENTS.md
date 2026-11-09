@@ -13,3 +13,4 @@
 - `customFetch` throws `ApiError` on non-2xx, so React/Vue Query see errors as errors.
 - The WebSocket `events` operation has no hook on purpose (D2-04); use `libs/realtime`.
 - `Problem` has a hand-written Zod schema in `src/problem.ts`, tied to the generated type with `satisfies`.
+- `src/generated/` must contain only Orval's `.ts`. A stray `.js` (e.g. from running `tsc` without `noEmit`) shadows the `.ts` in every bundle, so contract changes silently don't arrive (BUG-6); `generated-files.test.ts` fails on it.

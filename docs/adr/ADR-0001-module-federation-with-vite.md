@@ -66,6 +66,14 @@ Checked for peer compatibility on that date. Upgrades require a PR that runs the
 | TypeSpec | 1.17.0 | |
 | ESLint / typescript-eslint | 10.x / 8.72.x | flat config |
 
+**Day 9 additions (2026-11-06, D9-03):**
+
+| Tool | Version | Where | Note |
+|---|---|---|---|
+| `web-vitals` | 6.2.3 | `apps/shell` | RUM (SPEC-SHL-5) |
+| `size-limit` / `@size-limit/file` | 14.3.0 | root (dev) | `pnpm size`, ci/size (TECH-11) |
+| `@modelcontextprotocol/sdk` | 1.32.2 | `tools/mcp-spec-server` | stdio MCP server (TECH-8); `zod` 4 as its peer, already in the workspace |
+
 ## Consequences
 
 - **Positive:** stack matches the target team; remotes deploy independently; Vue and React coexist through one mount contract; Nx still gives affected builds and caching.

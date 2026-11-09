@@ -4,7 +4,8 @@ import { BrowserRouter } from 'react-router';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ApiError, configureApiClient } from '@nimbus/api-client';
 import type { Me } from '@nimbus/api-client/model';
-import { getMe, login, logout } from '@nimbus/api-client/react';
+import { getMe, login, logout, reportVitals } from '@nimbus/api-client/react';
+import { onCLS, onINP, onLCP } from 'web-vitals';
 import { createRealtimeClient, eventsUrl } from '@nimbus/realtime';
 import { t } from '@nimbus/messages';
 import { Button, ToastProvider } from '@nimbus/ui-kit';
@@ -17,8 +18,26 @@ import { registerFromManifest } from './remotes';
 import { createSessionStore } from './session';
 import { createSessionBus } from './bus';
 import { CHANNEL_NAME, createTabChannel } from './tabs';
+import { startRum } from './rum';
 
 const root = createRoot(document.getElementById('root') as HTMLElement);
+
+// SPEC-SHL-5: Web Vitals for this page load, sent once when the page is hidden (D9-07, D9-08).
+startRum({
+  onLCP,
+  onINP,
+  onCLS,
+  pathname: () => window.location.pathname,
+  ...(typeof navigator.sendBeacon === 'function' ? { sendBeacon: (url: string, data: Blob) => navigator.sendBeacon(url, data) } : {}),
+  report: (records) => reportVitals(records, { keepalive: true }),
+  now: () => new Date(),
+  target: {
+    get visibilityState() {
+      return document.visibilityState;
+    },
+    addEventListener: (type, fn) => (type === 'pagehide' ? window : document).addEventListener(type, fn),
+  },
+});
 
 // customFetch throws ApiError on every non-2xx response, so a resolved call is always the 200 body.
 const body = <T,>(res: { data: unknown }) => res.data as T;

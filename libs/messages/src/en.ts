@@ -99,6 +99,20 @@ export const en = {
   'shell.runningTasks_other': '{count} running tasks', // draft
   'shell.tenantContext': '{displayName} · {planName} · {status}', // draft
 
+  // ── Web Vitals page (SPEC-SHL-5, D9-09) ──
+  'vitals.title': 'Web Vitals', // draft
+  'vitals.description': '75th percentile per route over the last 24 hours.', // draft
+  'vitals.empty': 'No measurements in the last 24 hours.', // draft
+  'vitals.columns.route': 'Route', // draft
+  'vitals.columns.metric': 'Metric', // draft
+  'vitals.columns.p75': 'p75', // draft
+  'vitals.columns.rating': 'Rating', // draft
+  'vitals.columns.samples': 'Samples', // draft
+  'vitals.ms': '{value} ms', // draft
+  'vitals.rating.good': 'Good', // draft
+  'vitals.rating.needs-improvement': 'Needs improvement', // draft
+  'vitals.rating.poor': 'Poor', // draft
+
   // ── Common (ui-kit, §8.2; mock-data §10, all draft) ──
   'common.loading': 'Loading…', // draft
   'common.retry': 'Retry', // draft

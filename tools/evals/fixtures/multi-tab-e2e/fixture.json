@@ -1,0 +1,10 @@
+{
+  "name": "multi-tab-e2e",
+  "skill": "write-e2e",
+  "task": "Write E2E-9 for SPEC-SHL-7: two pages in one context; sign-out, sign-in as another role, expiry and a /login tab following a sign-in (AC-SHL-7.1 … AC-SHL-7.4).",
+  "targets": ["AC-SHL-7.1", "AC-SHL-7.2", "AC-SHL-7.3", "AC-SHL-7.4"],
+  "projects": ["shell", "e2e"],
+  "ui": false,
+  "base": "c55a5fc",
+  "head": "e31b657"
+}

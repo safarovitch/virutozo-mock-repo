@@ -12,6 +12,7 @@ export interface VitalRecord {
   metric: VitalName;
   value: number;
   rating: VitalRating;
+  /** The route template, never the URL: `/tenants/:tenantId`, `/compute/:vmId`, `/storage`; no IDs and no query string (D9-04). */
   route: string;
   /** Remote that owned the route, or `shell`. */
   remote: string;

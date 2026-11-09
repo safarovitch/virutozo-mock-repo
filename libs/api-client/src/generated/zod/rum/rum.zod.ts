@@ -16,7 +16,7 @@ export const ReportVitalsBodyItem = zod.object({
   "metric": zod.enum(['LCP', 'INP', 'CLS', 'FCP', 'TTFB']),
   "value": zod.number(),
   "rating": zod.enum(['good', 'needs-improvement', 'poor']),
-  "route": zod.string(),
+  "route": zod.string().describe('The route template, never the URL: `/tenants/:tenantId`, `/compute/:vmId`, `/storage`; no IDs and no query string (D9-04).'),
   "remote": zod.string().describe('Remote that owned the route, or `shell`.'),
   "navigationType": zod.string(),
   "ts": zod.iso.datetime({"offset":true})

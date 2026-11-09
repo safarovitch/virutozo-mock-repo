@@ -48,3 +48,5 @@ body { margin: 0; font-family: var(--font-sans); font-size: var(--font-size-md);
 .page { display: grid; gap: var(--space-3); }
 .page h1, .page p { margin: 0; }
 .boot { max-inline-size: 560px; margin: 10vh auto; padding: var(--space-6); }
+.vitals-table { border-collapse: collapse; inline-size: 100%; }
+.vitals-table th, .vitals-table td { text-align: start; padding: var(--space-2) var(--space-3); border-block-end: 1px solid var(--color-surface); }

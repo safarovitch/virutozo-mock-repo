@@ -1,0 +1,41 @@
+{
+  "fixture": "create-tenant-wizard",
+  "skill": "add-wizard",
+  "skillVersion": "none (baseline)",
+  "base": "524b4cb",
+  "head": "c55a5fc",
+  "date": "2026-11-06",
+  "score": 100,
+  "checks": [
+    {
+      "id": "target tests",
+      "pass": true,
+      "detail": "8 IDs have tests"
+    },
+    {
+      "id": "statuses done",
+      "pass": true,
+      "detail": "every target AC is done"
+    },
+    {
+      "id": "no forbidden patterns",
+      "pass": true,
+      "detail": "none in the added code"
+    },
+    {
+      "id": "contract first (H1)",
+      "pass": true,
+      "detail": "no generated files changed"
+    },
+    {
+      "id": "five states (H6)",
+      "pass": true,
+      "detail": "loading, empty, error and no-permission stories exist"
+    },
+    {
+      "id": "typecheck, lint, test",
+      "pass": true,
+      "detail": "passed for tenants"
+    }
+  ]
+}

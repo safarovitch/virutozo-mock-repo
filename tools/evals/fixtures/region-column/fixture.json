@@ -1,0 +1,10 @@
+{
+  "name": "region-column",
+  "skill": "contract-change",
+  "task": "Add a Region column to the tenant list (SPEC.md §15 step 5): `region` on Tenant in contracts/main.tsp, regenerate, seed it in the mock, show it in the table with a test.",
+  "targets": [],
+  "projects": ["tenants", "mock-api", "api-client"],
+  "ui": true,
+  "area": "tenants",
+  "base": "e31b657"
+}

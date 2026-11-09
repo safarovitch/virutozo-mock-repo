@@ -41,7 +41,7 @@ export const LoginResponse = zod.object({
   "status": zod.enum(['active', 'suspended', 'provisioning', 'error'])
 }).describe('Read-only summary of the user\'s own tenant (SPEC-SHL-8). Tenant roles have no `tenant:read`.'),zod.null()]).describe('Set for tenant_admin and tenant_viewer; null for provider/reseller admins.'),
   "resellerId": zod.union([zod.string().min(loginResponseResellerIdOneMin).max(loginResponseResellerIdOneMax).describe('Opaque ID with a type prefix, e.g. `t_8f2k1`, `vm_02ab`, `task_9xq`.'),zod.null()]).describe('Set for reseller_admin.'),
-  "permissions": zod.array(zod.enum(['tenant:read', 'tenant:create', 'tenant:update', 'tenant:suspend', 'quota:read', 'quota:update', 'vm:read', 'vm:operate', 'vm:create', 'bucket:read', 'bucket:create', 'bucket:delete', 'task:read', 'plan:read']))
+  "permissions": zod.array(zod.enum(['tenant:read', 'tenant:create', 'tenant:update', 'tenant:suspend', 'quota:read', 'quota:update', 'vm:read', 'vm:operate', 'vm:create', 'bucket:read', 'bucket:create', 'bucket:delete', 'task:read', 'plan:read', 'vitals:read']))
 })
 
 /**
@@ -78,6 +78,6 @@ export const GetMeResponse = zod.object({
   "status": zod.enum(['active', 'suspended', 'provisioning', 'error'])
 }).describe('Read-only summary of the user\'s own tenant (SPEC-SHL-8). Tenant roles have no `tenant:read`.'),zod.null()]).describe('Set for tenant_admin and tenant_viewer; null for provider/reseller admins.'),
   "resellerId": zod.union([zod.string().min(getMeResponseResellerIdOneMin).max(getMeResponseResellerIdOneMax).describe('Opaque ID with a type prefix, e.g. `t_8f2k1`, `vm_02ab`, `task_9xq`.'),zod.null()]).describe('Set for reseller_admin.'),
-  "permissions": zod.array(zod.enum(['tenant:read', 'tenant:create', 'tenant:update', 'tenant:suspend', 'quota:read', 'quota:update', 'vm:read', 'vm:operate', 'vm:create', 'bucket:read', 'bucket:create', 'bucket:delete', 'task:read', 'plan:read']))
+  "permissions": zod.array(zod.enum(['tenant:read', 'tenant:create', 'tenant:update', 'tenant:suspend', 'quota:read', 'quota:update', 'vm:read', 'vm:operate', 'vm:create', 'bucket:read', 'bucket:create', 'bucket:delete', 'task:read', 'plan:read', 'vitals:read']))
 })
 

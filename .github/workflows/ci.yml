@@ -91,6 +91,20 @@ jobs:
       - run: pnpm exec nx run-many -t build -p shell tenants storage compute
       - run: node tools/ci/no-test-hooks.mjs
 
+  size:
+    name: ci/size
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec nx run-many -t build -p shell tenants storage compute
+      - run: pnpm size # NFR-PERF-1 budgets on the production build (TECH-11)
+
   storybook-test:
     name: ci/storybook-test
     runs-on: ubuntu-latest

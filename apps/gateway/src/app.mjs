@@ -58,6 +58,11 @@ export async function buildGateway(config) {
     prefix: '/api',
     rewritePrefix: '/api',
     websocket: true,
+    // BUG-7: mock-api trusts X-Forwarded-For from this gateway (rate limits per client IP), so the gateway
+    // sets it from the socket and drops whatever the client sent.
+    replyOptions: {
+      rewriteRequestHeaders: (request, headers) => ({ ...headers, 'x-forwarded-for': request.socket.remoteAddress ?? request.ip }),
+    },
     // The proxy opens its own upstream socket and by default forwards only `cookie`. mock-api also checks
     // `Origin` on the upgrade (NFR-SEC-6, close 4403), so forward the browser's Origin too.
     wsClientOptions: {
@@ -65,6 +70,7 @@ export async function buildGateway(config) {
         ...headers,
         ...(request.headers.cookie ? { cookie: request.headers.cookie } : {}),
         ...(request.headers.origin ? { origin: request.headers.origin } : {}),
+        'x-forwarded-for': request.socket.remoteAddress ?? request.ip, // BUG-7
       }),
     },
   });

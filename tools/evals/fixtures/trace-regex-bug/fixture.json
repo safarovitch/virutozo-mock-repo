@@ -1,0 +1,10 @@
+{
+  "name": "trace-regex-bug",
+  "skill": "reproduce-bug",
+  "task": "BUG-4: tools/trace drops the test titles that follow a regex literal containing a quote (/can't/). Write the failing BUG-4 test, then fix codeMask.",
+  "targets": ["BUG-4"],
+  "projects": ["trace"],
+  "ui": false,
+  "base": "c55a5fc",
+  "head": "e31b657"
+}

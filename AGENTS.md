@@ -30,7 +30,7 @@ These are enforced by hooks, lint rules or CI. Breaking one means your change wi
 | H5 | Every acceptance criterion you implement gets at least one test whose title starts with the AC ID, e.g. `it('AC-TEN-2.4: …')`, and you set its status (`in-progress`/`done`) in the spec in the same PR. Every test title starts with a known, non-retired ID. Allowed prefixes: `AC TECH BUG NFR MF RT WS RBAC API TEST MSG HOOK E2E ADR` (list in `tools/trace/ids.ts`; retired IDs in `specs/retired-ids.md`). | CI `trace:check` (SPEC.md §3.3, T1–T6), lint `nimbus/test-name-has-id` |
 | H6 | Every UI that loads data handles **loading, empty, error and no-permission** states, each with a Storybook story. | review, `code-reviewer` subagent |
 | H7 | Remotes never import from other remotes. They talk to the shell only through `@nimbus/mf-contract`. | lint `nimbus/no-cross-remote-import` |
-| H8 | No `dangerouslySetInnerHTML`, no `v-html`, no session data in `localStorage`/`sessionStorage`/IndexedDB. The session is an httpOnly, Secure, SameSite=Strict cookie on the same origin (ADR-0005); never read or copy it, and never add CORS. Mutating requests go through `customFetch`, which adds `X-Nimbus-Csrf`. | lint, review |
+| H8 | No `dangerouslySetInnerHTML`, no `v-html`, no session data in `localStorage`/`sessionStorage`/IndexedDB (lint: `vue/no-v-html`, `no-restricted-syntax`, `no-restricted-globals`). The session is an httpOnly, Secure, SameSite=Strict cookie on the same origin (ADR-0005); never read or copy it, and never add CORS. Mutating requests go through `customFetch`, which adds `X-Nimbus-Csrf`. | lint, review |
 | H9 | No `any` without a `// reason:` comment. No `@ts-ignore`; use `@ts-expect-error` with a reason. | lint |
 | H10 | Playwright: no `waitForTimeout`, no CSS-class selectors. Use `getByRole` and web-first assertions. | lint `nimbus/no-playwright-sleep` |
 | H11 | Don't change Module Federation tooling (Vite + `@module-federation/vite`), ports or shared singletons without an ADR. | review |
@@ -64,7 +64,8 @@ pnpm storybook                             # component workshop
 pnpm contract:build && pnpm api:generate   # after editing contracts/main.tsp (from Day 2: pnpm nx run contracts:contract-build)
 pnpm trace                                 # AC → tests coverage report
 pnpm test:hooks                            # tests for .claude/hooks (node --test; needs Node ≥ 21)
-pnpm size                                  # bundle budgets
+pnpm size                                  # bundle budgets (after `pnpm build`)
+pnpm eval <fixture> [--checks]             # grade a skill eval fixture (tools/evals)
 ```
 
 Before Day 2, build the contract on its own with Node 22 and pnpm (never npm):
@@ -104,7 +105,8 @@ Ports: shell 4200 · tenants 4201 · storage 4202 · compute 4203 · mock-api 40
 | `libs/mf-contract` | `RemoteModule`, `RemoteContext`, root and scoped `EventBus` + event catalogue (SPEC.md §2.4, §2.5) |
 | `libs/realtime` | The only WebSocket client: Zod validation, reconnect and close codes, publishes `server:*` / `realtime:*` on the bus, `mergeTask` |
 | `libs/logger`, `libs/messages`, `libs/format` | Logger, typed message catalogue, formatters (SPEC.md §9) |
-| `tools/` | ESLint rules, MCP spec server, evals, MF shared config |
+| `tools/` | ESLint rules (`eslint-rules`), MCP spec server (`mcp-spec-server`, registered in `.mcp.json`), evals, trace, CI scripts, MF shared config |
+| `.claude/skills/`, `.claude/agents/` | Skills (SPEC.md §11.2) and subagents (§11.3). Use the matching skill before that kind of task; ask the `spec-reviewer` for §1a |
 
 ## 6. Finish every task with this summary
 

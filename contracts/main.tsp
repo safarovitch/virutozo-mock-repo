@@ -189,6 +189,8 @@ enum Permission {
   `bucket:delete`,
   `task:read`,
   `plan:read`,
+  @doc("The Web Vitals summary (`/_vitals`, SPEC-SHL-5). Provider admins only (D9-04).")
+  `vitals:read`,
 }
 
 model LoginRequest {
@@ -782,6 +784,7 @@ model VitalRecord {
   metric: VitalName;
   value: float64;
   rating: VitalRating;
+  @doc("The route template, never the URL: `/tenants/:tenantId`, `/compute/:vmId`, `/storage`; no IDs and no query string (D9-04).")
   route: string;
 
   @doc("Remote that owned the route, or `shell`.")
@@ -813,7 +816,7 @@ interface RumApi {
 
   @get
   @route("/summary")
-  @extension("x-permission", "task:read")
+  @extension("x-permission", "vitals:read")
   @operationId("getVitalsSummary")
   @summary("Get Web Vitals p75 summary")
   getVitalsSummary(): VitalSummary[] | AuthErrors | CommonErrors;

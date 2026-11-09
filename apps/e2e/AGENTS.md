@@ -22,3 +22,4 @@
 - `getByLabel('Name')` also matches "Display name": pass `exact: true`. A failed task's message appears in the toast and in the task center: scope to `getByRole('region', { name: 'Notifications' })`.
 - Creating tenants changes "Showing … of 10,000 tenants": wizard submits and suspends run in `*.exclusive.spec.ts` (D7-16). Crash tests use each remote's `/__crash` route.
 - `build-e2e` writes `apps/<app>/dist-e2e` and the gateway serves it in `e2e`/`dev` mode; production builds stay in `dist` (BUG-5). Clean it with `rm -rf apps/<app>/dist-e2e` only if the guard allows it; otherwise rebuild with `--skip-nx-cache`.
+- RUM: a `sendBeacon` body is readable only through `page.route` interception (`postData()` is null otherwise), and a page's beacon can arrive after the next navigation, so filter by content. Anything that seeds `/api/rum` runs in `exclusive` after a reset: closed pages keep the shared client IP at the 60/min limit (A9-04).

@@ -467,6 +467,7 @@ export async function buildMockApi(config: MockApiConfig) {
 
     app.post('/api/__test/reset', async (_req, reply) => {
       runner.stop();
+      rumHits.clear(); // e2e pages share one client IP; a reset starts a fresh RUM rate window (A9-04)
       db = new Db(config.seed);
       return reply.code(204).send();
     });

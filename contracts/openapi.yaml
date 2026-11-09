@@ -546,7 +546,7 @@ paths:
                 $ref: '#/components/schemas/Problem'
       tags:
         - RUM
-      x-permission: task:read
+      x-permission: vitals:read
   /tasks:
     get:
       operationId: listTasks
@@ -1587,6 +1587,7 @@ components:
         - bucket:delete
         - task:read
         - plan:read
+        - vitals:read
     Plan:
       type: object
       required:
@@ -2078,6 +2079,7 @@ components:
           $ref: '#/components/schemas/VitalRating'
         route:
           type: string
+          description: 'The route template, never the URL: `/tenants/:tenantId`, `/compute/:vmId`, `/storage`; no IDs and no query string (D9-04).'
         remote:
           type: string
           description: Remote that owned the route, or `shell`.
