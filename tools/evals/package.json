@@ -1,0 +1,13 @@
+{
+  "name": "@nimbus/evals",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint ."
+  },
+  "nx": {
+    "name": "evals"
+  }
+}

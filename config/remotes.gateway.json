@@ -1,0 +1,5 @@
+{
+  "tenants": "/remotes/tenants/remoteEntry.js",
+  "storage": "/remotes/storage/remoteEntry.js",
+  "compute": "/remotes/compute/remoteEntry.js"
+}

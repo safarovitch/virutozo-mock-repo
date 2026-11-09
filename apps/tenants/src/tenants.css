@@ -1,0 +1,23 @@
+/* Tenants area layout. Tokens and logical properties only (RTL-safe); components come from ui-kit. */
+.tenants-list { display: grid; gap: var(--space-3); }
+.tenants-list__header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2); }
+.tenants-list__header h1 { margin: 0; }
+.tenants-list__count { margin: 0; color: var(--color-text-muted); }
+.tenants-toolbar { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: end; }
+.tenants-toolbar .nui-field { min-inline-size: 180px; }
+.tenants-menu { position: relative; }
+.tenants-menu__panel { position: absolute; inset-inline-end: 0; inset-block-start: 100%; z-index: 5; margin: 0; padding: var(--space-1); list-style: none; display: grid; min-inline-size: 160px; background: var(--color-bg); border: 1px solid var(--color-text-muted); border-radius: var(--radius-md); }
+.tenants-menu__panel[hidden] { display: none; }
+.tenants-menu__panel .nui-button { inline-size: 100%; justify-content: start; }
+.tenants-tabs { display: flex; gap: var(--space-1); border-block-end: 1px solid var(--color-surface); }
+.tenants-tabs__tab { font: inherit; padding: var(--space-2) var(--space-3); background: none; border: 0; border-block-end: 2px solid transparent; color: var(--color-text); cursor: pointer; }
+.tenants-tabs__tab[aria-selected='true'] { border-block-end-color: var(--color-primary); font-weight: 600; }
+.tenants-tabs__tab:focus-visible, [role='tabpanel']:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.tenants-fields { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-2) var(--space-4); margin: 0; }
+.tenants-fields dt { color: var(--color-text-muted); }
+.tenants-fields dd { margin: 0; overflow-wrap: anywhere; }
+.tenants-quotas { display: grid; gap: var(--space-3); justify-items: start; }
+.tenants-error { margin: 0; color: var(--color-danger); }
+.tenants-note { margin: 0; color: var(--color-text-muted); }
+.tenants-activity { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+.tenants-drawer__links { display: flex; gap: var(--space-4); }

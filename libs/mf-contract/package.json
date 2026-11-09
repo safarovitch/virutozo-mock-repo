@@ -1,0 +1,19 @@
+{
+  "name": "@nimbus/mf-contract",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint ."
+  },
+  "nx": {
+    "name": "mf-contract"
+  },
+  "dependencies": {
+    "@nimbus/api-client": "workspace:*"
+  }
+}

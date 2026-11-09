@@ -1,0 +1,201 @@
+# CI (SPEC.md §12). Job names are the IDs that `verify:` lines and trace:check refer to.
+# Jobs owned by other TECH items are added by them (ci/size: TECH-11). Nightly cross-browser: nightly.yml.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NX_NO_CLOUD: true
+  NX_DAEMON: false
+
+jobs:
+  hooks:
+    name: ci/hooks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: node --test '.claude/hooks/__tests__/*.test.mjs'
+
+  trace-check:
+    name: ci/trace-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      # T1–T6 (SPEC.md §3.3). Node built-ins only, run by Node's type stripping: no install needed.
+      # On pull requests the PR description (Implements:) is read from GITHUB_EVENT_PATH.
+      - run: node tools/check-trace.ts --summary trace-report.md
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trace-report
+          path: trace-report.md
+
+  contract-check:
+    name: ci/contract-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm contract:build
+      - run: pnpm exec nx run contracts:contract-lint
+      - run: pnpm api:generate
+      - name: Contract and generated client are up to date
+        run: git diff --exit-code contracts/openapi.yaml libs/api-client/src/generated
+
+  affected:
+    name: ci/affected
+    needs: contract-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: nrwl/nx-set-shas@v4
+      - run: pnpm exec nx affected -t lint typecheck test build
+
+  no-test-hooks:
+    name: ci/no-test-hooks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec nx run-many -t build -p shell tenants storage compute
+      - run: node tools/ci/no-test-hooks.mjs
+
+  size:
+    name: ci/size
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec nx run-many -t build -p shell tenants storage compute
+      - run: pnpm size # NFR-PERF-1 budgets on the production build (TECH-11)
+
+  storybook-test:
+    name: ci/storybook-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - uses: nrwl/nx-set-shas@v4
+      # Storybook `play` functions in Chromium (§8.2, TECH-6), for affected design-system libraries.
+      - run: pnpm exec nx affected -t storybook-test
+
+  e2e:
+    name: ci/e2e
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm e2e
+        env:
+          CI: true
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            apps/e2e/test-results
+
+  perf:
+    name: ci/perf
+    runs-on: ubuntu-latest
+    continue-on-error: true # NFR-PERF-5 is a target: reported on the PR, never failing it (D5-21)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm perf
+        env:
+          CI: true
+      - if: always()
+        run: cat test-results/perf/perf.md >> "$GITHUB_STEP_SUMMARY" || true
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-report
+          path: test-results/perf
+
+  report:
+    name: ci/report
+    if: always() && github.event_name == 'pull_request'
+    needs: [trace-check, perf]
+    runs-on: ubuntu-latest
+    continue-on-error: true # a fork's token can't comment; the job summaries still have everything
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: reports
+      # One comment per PR, updated on every push: AC coverage (T1–T6) and the perf result.
+      # The bundle-size diff joins it with ci/size (TECH-11).
+      - name: Post or update the PR report
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          {
+            echo '<!-- nimbus-ci-report -->'
+            cat reports/trace-report/trace-report.md 2>/dev/null || echo '_No trace report (ci/trace-check failed before writing it)._'
+            echo
+            cat reports/perf-report/perf.md 2>/dev/null || echo '_No perf result (ci/perf did not finish)._'
+          } > report.md
+          id=$(gh api "repos/$GH_REPO/issues/$PR/comments" --jq '[.[] | select(.body | startswith("<!-- nimbus-ci-report -->"))][0].id // empty')
+          if [ -n "$id" ]; then gh api -X PATCH "repos/$GH_REPO/issues/comments/$id" -F body=@report.md >/dev/null
+          else gh pr comment "$PR" --body-file report.md; fi

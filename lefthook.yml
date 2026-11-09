@@ -1,0 +1,8 @@
+# HOOK-4 (SPEC.md §11.4): git pre-commit, so the rules hold for any agent or human.
+pre-commit:
+  jobs:
+    - name: affected lint, typecheck, test
+      run: pnpm exec nx affected -t lint typecheck test --files="$(echo {staged_files} | tr ' ' ',')"
+    - name: hook tests
+      glob: ".claude/hooks/**"
+      run: pnpm test:hooks

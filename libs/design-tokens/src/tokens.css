@@ -1,0 +1,22 @@
+/* Design tokens (SPEC.md §8.1). Single source for React and Vue. */
+:root {
+  --color-bg: #ffffff;
+  --color-surface: #f6f8fa;
+  --color-text: #1d2129;
+  --color-text-muted: #57606a;
+  --color-primary: #1f5fa8;
+  --color-danger: #b42318;
+  --color-warning: #b54708;
+  --color-success: #067647;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --font-sans: Inter, system-ui, sans-serif;
+  --font-size-sm: 13px;
+  --font-size-md: 14px;
+  --focus-ring: 0 0 0 3px rgb(31 95 168 / 40%);
+}

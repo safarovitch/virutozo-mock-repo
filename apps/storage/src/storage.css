@@ -1,0 +1,10 @@
+/* Storage area layout. Tokens and logical properties only (RTL-safe); components come from ui-kit. */
+.storage { display: grid; gap: var(--space-4); }
+.storage h1 { margin: 0; }
+.storage-context { display: grid; gap: var(--space-2); }
+.storage-usage p { margin: 0; }
+.storage-toolbar { display: flex; justify-content: flex-end; }
+.storage-form { display: grid; gap: var(--space-3); }
+.storage-form__error, .storage-form__field-error { margin: 0; color: var(--color-danger); }
+.storage-form__switch { display: inline-flex; align-items: center; gap: var(--space-2); }
+.storage-form__footer { padding: 0; border: 0; }

@@ -1,0 +1,23 @@
+{
+  "name": "@nimbus/test-utils",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@nimbus/api-client": "workspace:*",
+    "@nimbus/mf-contract": "workspace:*"
+  },
+  "devDependencies": {
+    "jsdom": "30.1.3"
+  },
+  "nx": {
+    "name": "test-utils"
+  }
+}

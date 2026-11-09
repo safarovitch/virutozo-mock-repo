@@ -1,0 +1,63 @@
+# Nightly cross-browser e2e (SPEC.md §10, §12; TECH-5): Chromium, Firefox and WebKit against the gateway
+# over HTTPS at https://localhost:8443, so `Secure` cookies behave the same everywhere (ADR-0005).
+# Non-blocking: a failure opens (or comments on) an issue instead of failing a PR.
+name: Nightly
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+env:
+  NX_NO_CLOUD: true
+  NX_DAEMON: false
+
+jobs:
+  nightly-e2e:
+    name: ci/nightly-e2e
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium firefox webkit
+      # A throwaway self-signed certificate for this run only; nothing is committed (D5-21).
+      - name: Self-signed certificate for localhost
+        run: |
+          mkdir -p "$RUNNER_TEMP/tls"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj '/CN=localhost' \
+            -addext 'subjectAltName=DNS:localhost' \
+            -keyout "$RUNNER_TEMP/tls/key.pem" -out "$RUNNER_TEMP/tls/cert.pem"
+      - run: pnpm e2e
+        env:
+          CI: true
+          NIGHTLY: '1'
+          TLS: '1'
+          TLS_CERT: ${{ runner.temp }}/tls/cert.pem
+          TLS_KEY: ${{ runner.temp }}/tls/key.pem
+          GATEWAY_PORT: '8443'
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-playwright-report
+          path: |
+            playwright-report
+            apps/e2e/test-results
+      - name: Open or update an issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title='Nightly cross-browser e2e failed'
+          number=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$number" ]; then gh issue comment "$number" --body "Failed again: $RUN_URL"
+          else gh issue create --title "$title" --body "The nightly Chromium/Firefox/WebKit run over HTTPS failed: $RUN_URL (TEST-4: fix the cause, don't retry into green)."; fi

@@ -1,0 +1,11 @@
+{
+  "name": "create-tenant-wizard",
+  "skill": "add-wizard",
+  "task": "Implement SPEC-TEN-2: the create-tenant wizard with per-step validation, a review step and 409/422 mapping (AC-TEN-2.1 … AC-TEN-2.8).",
+  "targets": ["AC-TEN-2.1", "AC-TEN-2.2", "AC-TEN-2.3", "AC-TEN-2.4", "AC-TEN-2.5", "AC-TEN-2.6", "AC-TEN-2.7", "AC-TEN-2.8"],
+  "projects": ["tenants"],
+  "ui": true,
+  "area": "tenants",
+  "base": "524b4cb",
+  "head": "c55a5fc"
+}

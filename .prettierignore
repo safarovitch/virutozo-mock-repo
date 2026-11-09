@@ -1,0 +1,8 @@
+dist
+node_modules
+coverage
+pnpm-lock.yaml
+contracts/openapi.yaml
+contracts/tsp-output
+libs/api-client/src/generated
+*.md

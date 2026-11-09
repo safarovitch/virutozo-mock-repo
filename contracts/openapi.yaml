@@ -1,0 +1,2243 @@
+openapi: 3.1.0
+info:
+  title: Nimbus API
+  version: 1.0.0
+  description: 'Mock multi-tenant cloud API for Nimbus Console. Every operation lists its required permission in `x-permission`. Auth is an httpOnly session cookie set by `login`. Every mutating request to an authenticated endpoint (and `login`/`logout`) must send the header `X-Nimbus-Csrf: 1` and a same-origin `Origin`, else 403 FORBIDDEN; the client adds the header centrally, so it is not modelled per operation (ADR-0005, NFR-SEC-6). Every operation can also return 422, 429 and 500 (`CommonErrors`).'
+tags:
+  - name: RUM
+    description: Real-user monitoring (Web Vitals)
+  - name: Realtime
+    description: WebSocket event stream
+  - name: Tasks
+    description: Long-running operations
+  - name: Storage
+    description: S3 buckets
+  - name: Compute
+    description: Virtual machines
+  - name: Tenants
+    description: Tenant lifecycle and quotas
+  - name: Plans
+    description: Pricing plans and their limits
+  - name: Auth
+    description: Demo sign-in and current session
+paths:
+  /buckets:
+    get:
+      operationId: listBuckets
+      summary: List buckets
+      description: Buckets of the caller's tenant. Provider/reseller admins must pass tenantId (422 VALIDATION_FAILED without it); a tenantId outside the caller's scope returns 404 NOT_FOUND.
+      parameters:
+        - name: tenantId
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ResourceId'
+          explode: false
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 63
+          explode: false
+        - $ref: '#/components/parameters/PageQuery.limit'
+        - $ref: '#/components/parameters/PageQuery.cursor'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BucketPage'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Access is forbidden.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      tags:
+        - Storage
+      x-permission: bucket:read
+    post:
+      operationId: createBucket
+      summary: Create bucket
+      description: 409 BUCKET_NAME_TAKEN; 409 TENANT_SUSPENDED if the tenant is suspended; 422 VALIDATION_FAILED or QUOTA_EXCEEDED when storage quota is fully used.
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bucket'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Access is forbidden.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      tags:
+        - Storage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BucketCreate'
+      x-permission: bucket:create
+  /buckets/{bucketName}:
+    delete:
+      operationId: deleteBucket
+      summary: Delete bucket
+      description: Only empty buckets can be deleted (409 BUCKET_NOT_EMPTY); 409 TENANT_SUSPENDED if the tenant is suspended.
+      parameters:
+        - name: bucketName
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/BucketName'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Access is forbidden.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      tags:
+        - Storage
+      x-permission: bucket:delete
+  /events:
+    get:
+      operationId: events
+      summary: Realtime event stream (WebSocket)
+      description: |-
+        WebSocket endpoint: connect to ws(s)://<host>/api/events. The browser sends the session cookie
+        on the handshake; the server rejects handshakes without a valid session (401) or with a
+        foreign `Origin` (403). A session only receives events about resources it can read (RT-12).
+        Close codes are listed in `x-close-codes` (WS-5).
+        This HTTP description exists only so the message schema (ServerEvent) is part of the contract
+        and gets generated types + Zod validation. Clients must not call it over plain HTTP.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerEvent'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Access is forbidden.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      tags:
+        - Realtime
+      x-close-codes:
+        '1000': Normal close. Reconnect with backoff (WS-1).
+        '1001': Server going away. Reconnect with backoff (WS-1).
+        '1006': 'Network failure or HTTP 401 at the handshake. Call GET /api/me: 401 → as 4401; otherwise reconnect with backoff.'
+        '4401': Session missing, expired or signed out. Don't reconnect; go to /login?reason=expired.
+        '4403': Origin rejected. Don't reconnect; state offline.
+        '4429': Too many connections. Reconnect with backoff, minimum 30 s.
+      x-transport: websocket
+      x-permission: task:read
+  /login:
+    post:
+      operationId: login
+      summary: Sign in as a demo user
+      description: Demo sign-in. No credentials.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Set-Cookie:
+              required: true
+              description: '`nimbus_session=<opaque>; HttpOnly; Secure; SameSite=Strict; Path=/api; Max-Age=<ttl>`'
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '403':
+          description: Access is forbidden.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      security:
+        - {}
+  /logout:
+    post:
+      operationId: logout
+      summary: Sign out
+      description: Ends the session and clears the cookie.
+      parameters: []
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+          headers:
+            Set-Cookie:
+              required: true
+              description: Expires the `nimbus_session` cookie.
+              schema:
+                type: string
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Access is forbidden.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      tags:
+        - Auth
+  /me:
+    get:
+      operationId: getMe
+      summary: Get current user and permissions
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      tags:
+        - Auth
+  /plans:
+    get:
+      operationId: listPlans
+      summary: List plans
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Plan'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Access is forbidden.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      tags:
+        - Plans
+      x-permission: plan:read
+  /rum:
+    post:
+      operationId: reportVitals
+      summary: Report Web Vitals
+      description: 'Sent with navigator.sendBeacon; no auth so it works during page unload. The only mutating operation exempt from `X-Nimbus-Csrf` (NFR-SEC-6): unauthenticated, append-only, `Origin`-checked, rate-limited to 60 requests/min per client IP (429), body limited to 16 KB (413), schema-validated (422); a foreign `Origin` gets 403.'
+      parameters: []
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+        '403':
+          description: Access is forbidden.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '413':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      tags:
+        - RUM
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/VitalRecord'
+      security:
+        - {}
+  /rum/summary:
+    get:
+      operationId: getVitalsSummary
+      summary: Get Web Vitals p75 summary
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VitalSummary'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Access is forbidden.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      tags:
+        - RUM
+      x-permission: vitals:read
+  /tasks:
+    get:
+      operationId: listTasks
+      summary: List tasks
+      description: Tasks visible to the caller, newest first.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/TaskStatus'
+          explode: false
+        - name: resourceId
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ResourceId'
+          explode: false
+        - name: since
+          in: query
+          required: false
+          description: Only tasks created after this time.
+          schema:
+            type: string
+            format: date-time
+          explode: false
+        - $ref: '#/components/parameters/PageQuery.limit'
+        - $ref: '#/components/parameters/PageQuery.cursor'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskPage'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Access is forbidden.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      tags:
+        - Tasks
+      x-permission: task:read
+  /tasks/{taskId}:
+    get:
+      operationId: getTask
+      summary: Get task
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/ResourceId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Access is forbidden.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      tags:
+        - Tasks
+      x-permission: task:read
+  /tenants:
+    get:
+      operationId: listTenants
+      summary: List tenants
+      description: 'Scoped by the server: provider_admin sees all, reseller_admin sees own. Tenant roles have no `tenant:read` (403).'
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+          explode: false
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/TenantStatus'
+          explode: false
+        - name: planId
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ResourceId'
+          explode: false
+        - name: sort
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/TenantSort'
+            default: name
+          explode: false
+        - $ref: '#/components/parameters/PageQuery.limit'
+        - $ref: '#/components/parameters/PageQuery.cursor'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantPage'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Access is forbidden.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      tags:
+        - Tenants
+      x-permission: tenant:read
+    post:
+      operationId: createTenant
+      summary: Create tenant
+      description: Creates the tenant in `provisioning` status and starts a `tenant.provision` task, returned with it.
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantCreated'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Access is forbidden.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      tags:
+        - Tenants
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantCreate'
+      x-permission: tenant:create
+  /tenants/{tenantId}:
+    get:
+      operationId: getTenant
+      summary: Get tenant
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/ResourceId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Access is forbidden.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      tags:
+        - Tenants
+      x-permission: tenant:read
+    patch:
+      operationId: updateTenant
+      summary: Update tenant
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/ResourceId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Access is forbidden.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      tags:
+        - Tenants
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantUpdate'
+      x-permission: tenant:update
+  /tenants/{tenantId}/quotas:
+    get:
+      operationId: getQuotas
+      summary: Get tenant quotas and usage
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/ResourceId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantQuotas'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Access is forbidden.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      tags:
+        - Tenants
+      x-permission: quota:read
+    put:
+      operationId: updateQuotas
+      summary: Update tenant quotas
+      description: 422 QUOTA_BELOW_USAGE / QUOTA_EXCEEDS_PLAN (with `params.resource`); 409 TENANT_SUSPENDED if the tenant is suspended.
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/ResourceId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantQuotas'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Access is forbidden.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      tags:
+        - Tenants
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuotaUpdate'
+      x-permission: quota:update
+  /tenants/{tenantId}/resume:
+    post:
+      operationId: resumeTenant
+      summary: Resume tenant
+      description: 409 TENANT_NOT_SUSPENDED if not suspended.
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/ResourceId'
+      responses:
+        '202':
+          description: The request has been accepted for processing, but processing has not yet completed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Access is forbidden.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      tags:
+        - Tenants
+      x-permission: tenant:suspend
+  /tenants/{tenantId}/suspend:
+    post:
+      operationId: suspendTenant
+      summary: Suspend tenant
+      description: 409 TENANT_NOT_ACTIVE if not active (the only use of that code).
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/ResourceId'
+      responses:
+        '202':
+          description: The request has been accepted for processing, but processing has not yet completed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Access is forbidden.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      tags:
+        - Tenants
+      x-permission: tenant:suspend
+  /vms:
+    get:
+      operationId: listVms
+      summary: List virtual machines
+      description: VMs of the caller's tenant. Provider/reseller admins must pass tenantId (422 VALIDATION_FAILED without it); a tenantId outside the caller's scope returns 404 NOT_FOUND.
+      parameters:
+        - name: tenantId
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ResourceId'
+          explode: false
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/VmStatus'
+          explode: false
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+          explode: false
+        - $ref: '#/components/parameters/PageQuery.limit'
+        - $ref: '#/components/parameters/PageQuery.cursor'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VmPage'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Access is forbidden.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      tags:
+        - Compute
+      x-permission: vm:read
+  /vms/{vmId}:
+    get:
+      operationId: getVm
+      summary: Get virtual machine
+      parameters:
+        - name: vmId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/ResourceId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vm'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Access is forbidden.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      tags:
+        - Compute
+      x-permission: vm:read
+  /vms/{vmId}/actions:
+    post:
+      operationId: runVmAction
+      summary: Start, stop or reboot a VM
+      description: |-
+        Valid transitions: stopped→start, running→stop, running→reboot.
+        409 VM_BUSY if an operation is already running; 409 VM_INVALID_STATE for invalid transitions;
+        409 TENANT_SUSPENDED if the VM's tenant is suspended.
+      parameters:
+        - name: vmId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/ResourceId'
+      responses:
+        '202':
+          description: The request has been accepted for processing, but processing has not yet completed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Access is forbidden.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Client error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      tags:
+        - Compute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VmActionRequest'
+      x-permission: vm:operate
+security:
+  - SessionCookie: []
+components:
+  parameters:
+    PageQuery.cursor:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+      explode: false
+    PageQuery.limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 200
+        default: 50
+      explode: false
+  schemas:
+    Bucket:
+      type: object
+      required:
+        - name
+        - tenantId
+        - createdAt
+        - sizeBytes
+        - objectCount
+        - versioning
+      properties:
+        name:
+          $ref: '#/components/schemas/BucketName'
+        tenantId:
+          $ref: '#/components/schemas/ResourceId'
+        createdAt:
+          type: string
+          format: date-time
+        sizeBytes:
+          type: integer
+          format: int64
+        objectCount:
+          type: integer
+          format: int32
+        versioning:
+          type: boolean
+    BucketCreate:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          $ref: '#/components/schemas/BucketName'
+        versioning:
+          type: boolean
+          default: false
+    BucketName:
+      type: string
+      minLength: 3
+      maxLength: 63
+      pattern: ^[a-z0-9][a-z0-9.-]*[a-z0-9]$
+      description: 'S3 bucket name: 3–63 chars, lowercase letters, digits, dots, hyphens; no `..`; not IP-formatted (checked server-side and in UI).'
+    BucketPage:
+      type: object
+      required:
+        - items
+        - nextCursor
+        - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Bucket'
+        nextCursor:
+          anyOf:
+            - type: string
+            - type: 'null'
+          description: Pass as `cursor` to get the next page. `null` on the last page.
+        total:
+          type: integer
+          format: int32
+          description: Total matching items across all pages.
+      description: Cursor pagination (API-3).
+    BucketUpdatedEvent:
+      type: object
+      required:
+        - type
+        - tenantId
+        - bucket
+        - name
+      properties:
+        type:
+          type: string
+          enum:
+            - bucket.updated
+        tenantId:
+          $ref: '#/components/schemas/ResourceId'
+        bucket:
+          anyOf:
+            - $ref: '#/components/schemas/Bucket'
+            - type: 'null'
+          description: '`null` when the bucket was deleted.'
+        name:
+          $ref: '#/components/schemas/BucketName'
+    ErrorCode:
+      type: string
+      enum:
+        - UNAUTHENTICATED
+        - FORBIDDEN
+        - NOT_FOUND
+        - VALIDATION_FAILED
+        - TENANT_NAME_TAKEN
+        - TENANT_NOT_ACTIVE
+        - TENANT_NOT_SUSPENDED
+        - TENANT_SUSPENDED
+        - QUOTA_EXCEEDS_PLAN
+        - QUOTA_BELOW_USAGE
+        - QUOTA_EXCEEDED
+        - VM_BUSY
+        - VM_INVALID_STATE
+        - BUCKET_NAME_TAKEN
+        - BUCKET_NOT_EMPTY
+        - RATE_LIMITED
+        - INTERNAL
+      description: Machine-readable error codes. The UI shows the message for the code, filled from `params`; it never shows `title` or `detail` (SPEC.md §9, MSG-3).
+    FieldError:
+      type: object
+      required:
+        - field
+        - message
+      properties:
+        field:
+          type: string
+          description: JSON path of the invalid field, e.g. `name` or `quotas.storageQuotaBytes`.
+        message:
+          type: string
+    HeartbeatEvent:
+      type: object
+      required:
+        - type
+        - ts
+      properties:
+        type:
+          type: string
+          enum:
+            - heartbeat
+        ts:
+          type: string
+          format: date-time
+    LoginRequest:
+      type: object
+      required:
+        - role
+      properties:
+        role:
+          $ref: '#/components/schemas/Role'
+          description: 'Demo only: pick which seeded demo user to sign in as.'
+    Me:
+      type: object
+      required:
+        - user
+        - role
+        - tenant
+        - resellerId
+        - permissions
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        role:
+          $ref: '#/components/schemas/Role'
+          description: Shown in the UI for context only. Never use for authorization decisions (RBAC-1).
+        tenant:
+          anyOf:
+            - $ref: '#/components/schemas/TenantSummary'
+            - type: 'null'
+          description: Set for tenant_admin and tenant_viewer; null for provider/reseller admins.
+        resellerId:
+          anyOf:
+            - $ref: '#/components/schemas/ResourceId'
+            - type: 'null'
+          description: Set for reseller_admin.
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Permission'
+    Money:
+      type: object
+      required:
+        - amountMicros
+        - currency
+      properties:
+        amountMicros:
+          type: integer
+          format: int64
+          description: Amount in micro-units (1/1,000,000 of the currency unit). 0.035 EUR = 35000.
+        currency:
+          type: string
+          description: ISO 4217 code.
+    Permission:
+      type: string
+      enum:
+        - tenant:read
+        - tenant:create
+        - tenant:update
+        - tenant:suspend
+        - quota:read
+        - quota:update
+        - vm:read
+        - vm:operate
+        - vm:create
+        - bucket:read
+        - bucket:create
+        - bucket:delete
+        - task:read
+        - plan:read
+        - vitals:read
+    Plan:
+      type: object
+      required:
+        - id
+        - name
+        - maxStorageQuotaBytes
+        - maxVmQuota
+        - defaultStorageQuotaBytes
+        - defaultVmQuota
+        - pricePerGiBMonth
+        - pricePerVcpuMonth
+      properties:
+        id:
+          $ref: '#/components/schemas/ResourceId'
+        name:
+          type: string
+        maxStorageQuotaBytes:
+          type: integer
+          format: int64
+          description: Maximum storage quota a tenant on this plan may have.
+        maxVmQuota:
+          type: integer
+          format: int32
+          description: Maximum VM quota a tenant on this plan may have.
+        defaultStorageQuotaBytes:
+          type: integer
+          format: int64
+        defaultVmQuota:
+          type: integer
+          format: int32
+        pricePerGiBMonth:
+          $ref: '#/components/schemas/Money'
+        pricePerVcpuMonth:
+          $ref: '#/components/schemas/Money'
+    Problem:
+      type: object
+      required:
+        - title
+        - status
+        - code
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+        params:
+          type: object
+          additionalProperties:
+            anyOf:
+              - type: string
+              - type: integer
+                format: int64
+              - type: boolean
+          description: 'Values for the code''s message placeholders. QUOTA_EXCEEDS_PLAN and QUOTA_BELOW_USAGE carry `resource` (`"storage"` or `"vms"`), which selects the message; `max` / `used` are bytes for storage and a count for VMs. Example: `{ resource: "storage", plan: "Starter", max: 107374182400 }`.'
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldError'
+      description: RFC 9457 problem details (API-2).
+    QuotaUpdate:
+      type: object
+      properties:
+        storageQuotaBytes:
+          type: integer
+          format: int64
+          minimum: 1073741824
+          description: Must be ≥ storageUsedBytes (QUOTA_BELOW_USAGE) and ≤ plan max (QUOTA_EXCEEDS_PLAN).
+        vmQuota:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 500
+          description: Must be ≥ vmCount (QUOTA_BELOW_USAGE) and ≤ plan max (QUOTA_EXCEEDS_PLAN).
+    QuotaUpdatedEvent:
+      type: object
+      required:
+        - type
+        - tenantId
+        - quotas
+      properties:
+        type:
+          type: string
+          enum:
+            - quota.updated
+        tenantId:
+          $ref: '#/components/schemas/ResourceId'
+        quotas:
+          $ref: '#/components/schemas/TenantQuotas'
+    ResourceId:
+      type: string
+      minLength: 3
+      maxLength: 40
+      description: Opaque ID with a type prefix, e.g. `t_8f2k1`, `vm_02ab`, `task_9xq`.
+    ResourceRef:
+      type: object
+      required:
+        - type
+        - id
+        - name
+      properties:
+        type:
+          $ref: '#/components/schemas/ResourceType'
+        id:
+          $ref: '#/components/schemas/ResourceId'
+        name:
+          type: string
+    ResourceType:
+      type: string
+      enum:
+        - vm
+        - tenant
+        - bucket
+    Role:
+      type: string
+      enum:
+        - provider_admin
+        - reseller_admin
+        - tenant_admin
+        - tenant_viewer
+    ServerEvent:
+      anyOf:
+        - $ref: '#/components/schemas/TaskUpdatedEvent'
+        - $ref: '#/components/schemas/VmUpdatedEvent'
+        - $ref: '#/components/schemas/TenantUpdatedEvent'
+        - $ref: '#/components/schemas/QuotaUpdatedEvent'
+        - $ref: '#/components/schemas/BucketUpdatedEvent'
+        - $ref: '#/components/schemas/HeartbeatEvent'
+      description: Server → client WebSocket message. Discriminated by `type`.
+    Slug:
+      type: string
+      minLength: 3
+      maxLength: 63
+      pattern: ^[a-z0-9][a-z0-9-]*[a-z0-9]$
+      description: 'DNS-style slug: 3–63 chars, lowercase letters, digits, hyphens; starts and ends with a letter or digit.'
+    Task:
+      type: object
+      required:
+        - id
+        - kind
+        - status
+        - progress
+        - seq
+        - resource
+        - tenantId
+        - error
+        - createdAt
+        - finishedAt
+      properties:
+        id:
+          $ref: '#/components/schemas/ResourceId'
+        kind:
+          $ref: '#/components/schemas/TaskKind'
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        progress:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 100
+        seq:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Per-task version, increased on every change; 0 in the 201/202 response. Clients merge with `mergeTask` (SPEC.md §2.5).
+        resource:
+          $ref: '#/components/schemas/ResourceRef'
+        tenantId:
+          anyOf:
+            - $ref: '#/components/schemas/ResourceId'
+            - type: 'null'
+        error:
+          anyOf:
+            - $ref: '#/components/schemas/Problem'
+            - type: 'null'
+        createdAt:
+          type: string
+          format: date-time
+        finishedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+    TaskKind:
+      type: string
+      enum:
+        - vm.start
+        - vm.stop
+        - vm.reboot
+        - tenant.suspend
+        - tenant.resume
+        - tenant.provision
+    TaskPage:
+      type: object
+      required:
+        - items
+        - nextCursor
+        - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+        nextCursor:
+          anyOf:
+            - type: string
+            - type: 'null'
+          description: Pass as `cursor` to get the next page. `null` on the last page.
+        total:
+          type: integer
+          format: int32
+          description: Total matching items across all pages.
+      description: Cursor pagination (API-3).
+    TaskStatus:
+      type: string
+      enum:
+        - queued
+        - running
+        - succeeded
+        - failed
+    TaskUpdatedEvent:
+      type: object
+      required:
+        - type
+        - task
+      properties:
+        type:
+          type: string
+          enum:
+            - task.updated
+        task:
+          $ref: '#/components/schemas/Task'
+    Tenant:
+      type: object
+      required:
+        - id
+        - name
+        - displayName
+        - status
+        - planId
+        - resellerId
+        - adminEmail
+        - createdAt
+        - storageUsedBytes
+        - storageQuotaBytes
+        - vmCount
+        - vmQuota
+      properties:
+        id:
+          $ref: '#/components/schemas/ResourceId'
+        name:
+          $ref: '#/components/schemas/Slug'
+        displayName:
+          type: string
+          maxLength: 120
+        status:
+          $ref: '#/components/schemas/TenantStatus'
+        planId:
+          $ref: '#/components/schemas/ResourceId'
+        resellerId:
+          anyOf:
+            - $ref: '#/components/schemas/ResourceId'
+            - type: 'null'
+        adminEmail:
+          type: string
+          format: email
+        createdAt:
+          type: string
+          format: date-time
+        storageUsedBytes:
+          type: integer
+          format: int64
+        storageQuotaBytes:
+          type: integer
+          format: int64
+        vmCount:
+          type: integer
+          format: int32
+        vmQuota:
+          type: integer
+          format: int32
+    TenantCreate:
+      type: object
+      required:
+        - name
+        - adminEmail
+        - planId
+        - storageQuotaBytes
+        - vmQuota
+      properties:
+        name:
+          $ref: '#/components/schemas/Slug'
+        displayName:
+          type: string
+          maxLength: 120
+        adminEmail:
+          type: string
+          format: email
+        planId:
+          $ref: '#/components/schemas/ResourceId'
+        storageQuotaBytes:
+          type: integer
+          format: int64
+          minimum: 1073741824
+          description: At least 1 GiB, at most the plan's maxStorageQuotaBytes (else QUOTA_EXCEEDS_PLAN).
+        vmQuota:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 500
+    TenantCreated:
+      type: object
+      required:
+        - tenant
+        - task
+      properties:
+        tenant:
+          $ref: '#/components/schemas/Tenant'
+        task:
+          $ref: '#/components/schemas/Task'
+          description: The `tenant.provision` task (seq 0). The caller publishes `task:started` with it (SPEC.md §2.5).
+    TenantPage:
+      type: object
+      required:
+        - items
+        - nextCursor
+        - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tenant'
+        nextCursor:
+          anyOf:
+            - type: string
+            - type: 'null'
+          description: Pass as `cursor` to get the next page. `null` on the last page.
+        total:
+          type: integer
+          format: int32
+          description: Total matching items across all pages.
+      description: Cursor pagination (API-3).
+    TenantQuotas:
+      type: object
+      required:
+        - storageQuotaBytes
+        - storageUsedBytes
+        - vmQuota
+        - vmCount
+        - planMaxStorageQuotaBytes
+        - planMaxVmQuota
+      properties:
+        storageQuotaBytes:
+          type: integer
+          format: int64
+        storageUsedBytes:
+          type: integer
+          format: int64
+        vmQuota:
+          type: integer
+          format: int32
+        vmCount:
+          type: integer
+          format: int32
+        planMaxStorageQuotaBytes:
+          type: integer
+          format: int64
+          description: The plan's maximums, so the UI can validate before saving.
+        planMaxVmQuota:
+          type: integer
+          format: int32
+    TenantSort:
+      type: string
+      enum:
+        - name
+        - -name
+        - createdAt
+        - -createdAt
+        - storageUsedBytes
+        - -storageUsedBytes
+    TenantStatus:
+      type: string
+      enum:
+        - active
+        - suspended
+        - provisioning
+        - error
+    TenantSummary:
+      type: object
+      required:
+        - id
+        - displayName
+        - planName
+        - status
+      properties:
+        id:
+          $ref: '#/components/schemas/ResourceId'
+        displayName:
+          type: string
+        planName:
+          type: string
+        status:
+          $ref: '#/components/schemas/TenantStatus'
+      description: Read-only summary of the user's own tenant (SPEC-SHL-8). Tenant roles have no `tenant:read`.
+    TenantUpdate:
+      type: object
+      properties:
+        displayName:
+          type: string
+          maxLength: 120
+        adminEmail:
+          type: string
+          format: email
+        planId:
+          $ref: '#/components/schemas/ResourceId'
+          description: Changing plan fails with QUOTA_EXCEEDS_PLAN if current quotas exceed the new plan's maximums.
+    TenantUpdatedEvent:
+      type: object
+      required:
+        - type
+        - tenant
+      properties:
+        type:
+          type: string
+          enum:
+            - tenant.updated
+        tenant:
+          type: object
+          properties:
+            id:
+              $ref: '#/components/schemas/ResourceId'
+            status:
+              $ref: '#/components/schemas/TenantStatus'
+          required:
+            - id
+            - status
+    User:
+      type: object
+      required:
+        - id
+        - name
+        - email
+      properties:
+        id:
+          $ref: '#/components/schemas/ResourceId'
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+    VitalName:
+      type: string
+      enum:
+        - LCP
+        - INP
+        - CLS
+        - FCP
+        - TTFB
+    VitalRating:
+      type: string
+      enum:
+        - good
+        - needs-improvement
+        - poor
+    VitalRecord:
+      type: object
+      required:
+        - metric
+        - value
+        - rating
+        - route
+        - remote
+        - navigationType
+        - ts
+      properties:
+        metric:
+          $ref: '#/components/schemas/VitalName'
+        value:
+          type: number
+          format: double
+        rating:
+          $ref: '#/components/schemas/VitalRating'
+        route:
+          type: string
+          description: 'The route template, never the URL: `/tenants/:tenantId`, `/compute/:vmId`, `/storage`; no IDs and no query string (D9-04).'
+        remote:
+          type: string
+          description: Remote that owned the route, or `shell`.
+        navigationType:
+          type: string
+        ts:
+          type: string
+          format: date-time
+    VitalSummary:
+      type: object
+      required:
+        - route
+        - metric
+        - p75
+        - rating
+        - samples
+      properties:
+        route:
+          type: string
+        metric:
+          $ref: '#/components/schemas/VitalName'
+        p75:
+          type: number
+          format: double
+        rating:
+          $ref: '#/components/schemas/VitalRating'
+        samples:
+          type: integer
+          format: int32
+    Vm:
+      type: object
+      required:
+        - id
+        - tenantId
+        - name
+        - status
+        - vcpus
+        - memoryMiB
+        - diskGiB
+        - ip
+        - image
+        - activeTaskId
+        - createdAt
+      properties:
+        id:
+          $ref: '#/components/schemas/ResourceId'
+        tenantId:
+          $ref: '#/components/schemas/ResourceId'
+        name:
+          $ref: '#/components/schemas/Slug'
+        status:
+          $ref: '#/components/schemas/VmStatus'
+        vcpus:
+          type: integer
+          format: int32
+        memoryMiB:
+          type: integer
+          format: int32
+        diskGiB:
+          type: integer
+          format: int32
+        ip:
+          anyOf:
+            - type: string
+            - type: 'null'
+        image:
+          type: string
+        activeTaskId:
+          anyOf:
+            - $ref: '#/components/schemas/ResourceId'
+            - type: 'null'
+          description: Set while an operation is running; all actions are blocked (VM_BUSY).
+        createdAt:
+          type: string
+          format: date-time
+    VmAction:
+      type: string
+      enum:
+        - start
+        - stop
+        - reboot
+    VmActionRequest:
+      type: object
+      required:
+        - action
+      properties:
+        action:
+          $ref: '#/components/schemas/VmAction'
+    VmPage:
+      type: object
+      required:
+        - items
+        - nextCursor
+        - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Vm'
+        nextCursor:
+          anyOf:
+            - type: string
+            - type: 'null'
+          description: Pass as `cursor` to get the next page. `null` on the last page.
+        total:
+          type: integer
+          format: int32
+          description: Total matching items across all pages.
+      description: Cursor pagination (API-3).
+    VmStatus:
+      type: string
+      enum:
+        - running
+        - stopped
+        - starting
+        - stopping
+        - rebooting
+        - error
+    VmUpdatedEvent:
+      type: object
+      required:
+        - type
+        - vm
+      properties:
+        type:
+          type: string
+          enum:
+            - vm.updated
+        vm:
+          type: object
+          properties:
+            id:
+              $ref: '#/components/schemas/ResourceId'
+            status:
+              $ref: '#/components/schemas/VmStatus'
+            ip:
+              anyOf:
+                - type: string
+                - type: 'null'
+            activeTaskId:
+              anyOf:
+                - $ref: '#/components/schemas/ResourceId'
+                - type: 'null'
+          required:
+            - id
+            - status
+            - ip
+            - activeTaskId
+  securitySchemes:
+    SessionCookie:
+      type: apiKey
+      in: cookie
+      name: nimbus_session
+      description: httpOnly session cookie set by `login` (ADR-0005). JavaScript never reads it.
+servers:
+  - url: http://localhost:8080/api
+    description: 'Gateway: one origin for app and API (ADR-0005)'
+    variables: {}
+  - url: http://localhost:4000/api
+    description: mock-api directly (apps/mock-api)
+    variables: {}

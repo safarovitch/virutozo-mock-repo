@@ -1,0 +1,11 @@
+{
+  "name": "storage-bucket-list",
+  "skill": "add-table-page",
+  "task": "Implement SPEC-STO-1 in the storage remote: the usage card and the bucket list with all five states, updated from bucket.updated and quota.updated (AC-STO-1.1 … AC-STO-1.4).",
+  "targets": ["AC-STO-1.1", "AC-STO-1.2", "AC-STO-1.3", "AC-STO-1.4"],
+  "projects": ["storage"],
+  "ui": true,
+  "area": "storage",
+  "base": "c55a5fc",
+  "head": "e31b657"
+}

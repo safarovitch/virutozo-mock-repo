@@ -1,0 +1,5 @@
+{
+  "tenants": "http://localhost:4201/remoteEntry.js",
+  "storage": "http://localhost:4202/remoteEntry.js",
+  "compute": "http://localhost:4203/remoteEntry.js"
+}

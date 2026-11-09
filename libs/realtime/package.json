@@ -1,0 +1,21 @@
+{
+  "name": "@nimbus/realtime",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@nimbus/api-client": "workspace:*",
+    "@nimbus/logger": "workspace:*",
+    "@nimbus/mf-contract": "workspace:*"
+  },
+  "nx": {
+    "name": "realtime"
+  }
+}
